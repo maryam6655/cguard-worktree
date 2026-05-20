@@ -1,0 +1,133 @@
+/* Home Page */
+.home-page {
+  width: 100%;
+  overflow-x: hidden;
+}
+
+.home-content {
+  padding-top: 0;
+}
+
+/* Smooth Scrolling */
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 70px;
+}
+
+/* Scroll Animation Setup */
+section {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity 0.8s ease, transform 0.8s ease;
+}
+
+section.animate-in {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Special animation for hero (always visible) */
+section#home {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Prevent horizontal overflow */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1FB6AD;
+  border-radius: 6px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #189a92;
+}
+
+/* Loading State */
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  font-size: 1.5rem;
+  color: #173B5F;
+}
+
+/* Responsive Typography */
+@media (max-width: 768px) {
+  html {
+    scroll-padding-top: 60px;
+  }
+}
+
+/* Prevent animations on page load */
+.preload * {
+  animation-duration: 0s !important;
+  transition-duration: 0s !important;
+}
+
+/* Map Section Wrapper - For Embedded MapPage */
+.map-section-wrapper {
+  padding: 80px 0;
+  background: #f8fafc;
+  min-height: 100vh;
+}
+
+.map-section-header {
+  text-align: center;
+  margin-bottom: 3rem;
+  padding: 0 2rem;
+}
+
+.section-title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #173B5F;
+  margin: 0 0 1rem 0;
+}
+
+.section-subtitle {
+  font-size: 1.15rem;
+  color: #64748B;
+  margin: 0;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Adjust MapPage when embedded in Home */
+.map-section-wrapper .map-page {
+  height: 700px;
+  max-width: 1400px;
+  margin: 0 auto;
+  border-radius: 16px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.map-section-wrapper .leaflet-map {
+  border-radius: 16px;
+}

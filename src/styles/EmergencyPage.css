@@ -1,0 +1,30 @@
+.emergency-page-shell {
+  min-height: 100vh;
+  background: #ffffff;
+}
+
+.emergency-page-main {
+  padding-top: 86px;
+}
+
+.emergency-page-main section {
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+.emergency-page-main section.animate-in {
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+@media (max-width: 1024px) {
+  .emergency-page-main {
+    padding-top: 72px;
+  }
+}
+
+@media (max-width: 768px) {
+  .emergency-page-main {
+    padding-top: 120px;
+  }
+}

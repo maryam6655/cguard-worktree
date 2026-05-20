@@ -1,0 +1,173 @@
+@import "./EmergencyDashboard.css";
+
+/* Helpline Section */
+.helpline-section h3,
+.shelter-section h3 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #173B5F;
+  margin: 0 0 1.5rem 0;
+}
+
+.helpline-card {
+  background: #f8fafc;
+  padding: 1.5rem;
+  border-radius: 12px;
+  margin-bottom: 1rem;
+  border-left: 4px solid #1FB6AD;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.helpline-card:hover {
+  background: #f1f5f9;
+  transform: translateX(8px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.helpline-name {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0 0 0.5rem 0;
+}
+
+.helpline-number {
+  font-size: 1.15rem;
+  font-weight: 500;
+  color: #1FB6AD;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.phone-inline {
+  font-size: 1.2rem;
+}
+
+/* Shelter Section */
+.shelter-card {
+  background: #fff;
+  padding: 1.5rem;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  margin-bottom: 1rem;
+  transition: all 0.3s ease;
+}
+
+.shelter-card:hover {
+  border-color: #1FB6AD;
+  box-shadow: 0 4px 16px rgba(31, 182, 173, 0.15);
+  transform: translateY(-4px);
+}
+
+.shelter-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+.shelter-header h4 {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0;
+  flex: 1;
+}
+
+.status {
+  padding: 0.35rem 1rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.status.available {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.status.full {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.shelter-info {
+  font-size: 0.95rem;
+  color: #475569;
+  margin: 0.5rem 0;
+}
+
+.facility-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.facility {
+  background: #e0f2f1;
+  color: #00695c;
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+/* Responsive Design */
+@media (max-width: 992px) {
+  .emergency-grid {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+
+  .section-title {
+    font-size: 2rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .emergency-section-wrapper {
+    padding: 60px 1.5rem;
+  }
+
+  .section-title {
+    font-size: 1.75rem;
+  }
+
+  .section-subtitle {
+    font-size: 1rem;
+  }
+
+  .helpline-section h3,
+  .shelter-section h3 {
+    font-size: 1.3rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .emergency-section-wrapper {
+    padding: 50px 1rem;
+  }
+
+  .section-title {
+    font-size: 1.5rem;
+  }
+
+  .helpline-card,
+  .shelter-card {
+    padding: 1.25rem;
+  }
+
+  .facility-row {
+    gap: 0.4rem;
+  }
+
+  .facility {
+    font-size: 0.8rem;
+    padding: 0.35rem 0.7rem;
+  }
+}

@@ -1,0 +1,100 @@
+@import "./EmergencyDashboard.css";
+
+/* Helpline cards */
+.helpline-card {
+  display: flex;
+  gap: 16px;
+  background: #ffffff;
+  padding: 26px;
+  border-radius: 17px;
+  margin-bottom: 16px;
+  box-shadow: 0 6px 14px rgba(0,0,0,0.05);
+  font-size: 24px;
+}
+
+.phone-icon {
+  font-size: 20px;
+}
+.phone-inline {
+  margin-right: 8px;
+  font-size: 20px;
+}
+
+.helpline-name {
+  font-weight: 600;
+  color: #0a2540;
+}
+
+.helpline-number {
+  color: #1fb6ad;
+  font-weight: 700;
+  margin-top: 4px;
+}
+
+/* Shelter cards */
+.shelter-card {
+  background: #ffffff;
+  padding: 26px;
+  border-radius: 17px;
+  margin-bottom: 20px;
+  box-shadow: 0 6px 14px rgba(0,0,0,0.05);
+}
+
+.shelter-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.shelter-header h3 {
+  font-size: 24px;
+  color: #0a2540;
+}
+
+.shelter-info {
+  font-size: 19px;
+  color: #425b76;
+  margin-bottom: 4px;
+}
+
+/* Facilities row */
+.facility-row {
+  display: flex;
+  gap: 14px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.facility {
+  font-size: 15px;
+  color: #1fb6ad;
+  background: #e6f7f5;
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+
+/* Status */
+.status {
+  font-size: 15px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-weight: 600;
+}
+
+.status.available {
+  background: #e6f7f5;
+  color: #1fb6ad;
+}
+
+.status.full {
+  background: #fdecea;
+  color: #d9534f;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .emergency-grid {
+    grid-template-columns: 1fr;
+  }
+}

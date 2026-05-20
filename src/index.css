@@ -1,0 +1,207 @@
+/* =========================
+   GLOBAL RESET & BASE
+========================= */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+}
+
+/* =========================
+   ROOT & BODY
+========================= */
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  font-family: "Inter", system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color: #213547;
+  background-color: #ffffff;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* IMPORTANT: root must NOT be flex */
+#root {
+  width: 100%;
+  min-height: 100vh;
+}
+
+/* =========================
+   ELEMENT DEFAULTS
+========================= */
+
+a {
+  font-weight: 500;
+  color: #1fb6ad;
+  text-decoration: none;
+}
+
+a:hover {
+  color: #159b92;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 700;
+}
+
+button {
+  border-radius: 8px;
+  border: none;
+  padding: 0.6em 1.2em;
+  font-size: 1em;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+/* =========================
+   FORM NORMALIZATION
+========================= */
+
+input,
+textarea,
+select {
+  font-family: inherit;
+  font-size: 1rem;
+}
+
+/* =========================
+   SCROLLBAR (OPTIONAL, CLEAN)
+========================= */
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* =========================
+   NAVBAR (GLOBAL)
+   Moved from LandingPage.css so navbar appears consistently
+========================= */
+.navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 86px;
+  padding: 0 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(11, 47, 79, 0.92);
+  z-index: 9999;
+}
+
+.logo {
+  color: #ffffff;
+  font-size: 24px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+}
+
+.nav-links {
+  list-style: none;
+  display: flex;
+  gap: 50px;
+  align-items: center;
+}
+
+.nav-item {
+  font-size: 18px;
+  color: #c7d9eb;
+  cursor: pointer;
+  opacity: 0.85;
+  transition: opacity 0.2s ease;
+}
+
+.nav-item:hover {
+  opacity: 1;
+}
+
+.nav-item.active {
+  font-weight: 600;
+  color: #ffffff;
+  opacity: 1;
+}
+
+.login-btn {
+  padding: 12px 22px;
+  border-radius: 6px;
+  border: 1px solid #8fb6d9;
+  background: transparent;
+  color: #e6f0fa;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+  transition: all 0.25s ease;
+}
+
+.login-btn:hover {
+  border-color: #bfd4ea;
+  color: #ffffff;
+}
+
+@media (max-width: 1024px) {
+  .navbar {
+    height: 72px;
+    padding: 0 30px;
+  }
+
+  .nav-links {
+    gap: 30px;
+  }
+}
+
+@media (max-width: 768px) {
+  .navbar {
+    height: auto;
+    padding: 14px 20px;
+    flex-wrap: wrap;
+  }
+
+  .logo {
+    font-size: 20px;
+  }
+
+  .nav-links {
+    width: 100%;
+    justify-content: flex-start;
+    gap: 18px;
+    margin-top: 10px;
+  }
+
+  .nav-item {
+    font-size: 14px;
+  }
+
+  .login-btn {
+    font-size: 13px;
+    padding: 8px 14px;
+  }
+}
+

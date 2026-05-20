@@ -1,0 +1,14 @@
+{
+"type": "FeatureCollection",
+"name": "chenab_guagess",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "fid": 1, "id": 1, "name": "Marala Headworks", "station": "MARALA" }, "geometry": { "type": "Point", "coordinates": [ 73.695732745759159, 32.911176855067914 ] } },
+{ "type": "Feature", "properties": { "fid": 2, "id": 2, "name": "Khanki Headworks", "station": "KHANKI" }, "geometry": { "type": "Point", "coordinates": [ 73.38635857950851, 32.696994739971323 ] } },
+{ "type": "Feature", "properties": { "fid": 3, "id": 3, "name": "Qadirabad", "station": "QADIRABAD" }, "geometry": { "type": "Point", "coordinates": [ 73.576742681816597, 32.856781397265607 ] } },
+{ "type": "Feature", "properties": { "fid": 4, "id": 4, "name": "Trimmu Headworks", "station": "TRIMMYU" }, "geometry": { "type": "Point", "coordinates": [ 73.641933133274833, 32.854172699687226 ] } },
+{ "type": "Feature", "properties": { "fid": 5, "id": 5, "name": "Punjnad Headworks", "station": "PUNJNAD" }, "geometry": { "type": "Point", "coordinates": [ 73.646645944725847, 32.853428571563384 ] } },
+{ "type": "Feature", "properties": { "fid": 6, "id": 6, "name": "Chiniot", "station": "CHINIOT" }, "geometry": { "type": "Point", "coordinates": [ 73.579178328164005, 32.782984442506169 ] } },
+{ "type": "Feature", "properties": { "fid": 7, "id": null, "name": null, "station": null }, "geometry": null }
+]
+}

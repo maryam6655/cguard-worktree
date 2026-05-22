@@ -515,3 +515,264 @@
     width: 100%;
   }
 }
+
+/* ==================================================
+   ANALYTICS DASHBOARD — center content redesign
+   (Select Station + Discharge Trend + Overview)
+   ================================================== */
+
+/* Override the global Home.css scroll-fade rule
+   (`section { opacity: 0; transform: translateY(30px); }`) so the dashboard
+   <section> cards are visible. Without this, .ad-stations-card / .ad-chart-card
+   / .ad-overview-card render with opacity:0 and the body looks blank. */
+.main-area section {
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+/* Temporary render-sanity marker (matches the JSX debug banner). */
+.ad-debug-banner {
+  background: #dcfce7;
+  border: 1px solid #86efac;
+  color: #166534;
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  margin-bottom: 14px;
+  display: inline-block;
+}
+
+.ad-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+  padding: 22px;
+  margin-bottom: 20px;
+}
+
+.ad-card-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.01em;
+}
+
+.ad-card-subtitle {
+  margin: 4px 0 0 0;
+  font-size: 13px;
+  color: #64748b;
+}
+
+/* ---------- Select Station ---------- */
+.ad-stations-card {
+  padding: 20px 22px;
+}
+
+.ad-stations-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.ad-station-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  transition: border-color 150ms ease, box-shadow 200ms ease, transform 120ms ease,
+    background 150ms ease;
+  min-width: 0;
+}
+
+.ad-station-card:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.05);
+  transform: translateY(-1px);
+}
+
+.ad-station-card--active {
+  background: linear-gradient(135deg, #2447b8 0%, #1d4ed8 100%);
+  border-color: #1d4ed8;
+  box-shadow: 0 10px 22px rgba(29, 78, 216, 0.28);
+}
+
+.ad-station-card--active .ad-station-label {
+  color: #ffffff;
+}
+
+.ad-station-card--active .ad-station-sub {
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.ad-station-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 150ms ease, color 150ms ease;
+}
+
+.ad-station-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.ad-station-label {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+.ad-station-sub {
+  margin-top: 2px;
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.2;
+}
+
+/* ---------- Discharge Trend ---------- */
+.ad-chart-card {
+  padding: 22px;
+}
+
+.ad-chart-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.ad-chart-body {
+  width: 100%;
+  min-height: 380px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ad-chart-empty {
+  width: 100%;
+  text-align: center;
+  padding: 60px 20px;
+  color: #94a3b8;
+  font-size: 13px;
+}
+
+.ad-chart-empty--error {
+  color: #b91c1c;
+}
+
+/* ---------- Discharge Overview ---------- */
+.ad-overview-card {
+  padding: 22px;
+}
+
+.ad-overview-header {
+  margin-bottom: 14px;
+}
+
+.ad-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.ad-overview-stat {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+}
+
+.ad-overview-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.ad-overview-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.ad-overview-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.ad-overview-value {
+  margin-top: 2px;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #0f172a;
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ad-overview-sub {
+  margin-top: 2px;
+  font-size: 11.5px;
+  color: #94a3b8;
+}
+
+/* Stat tone variants — soft tinted icon backgrounds */
+.ad-overview-stat--blue   .ad-overview-icon { background: #eff6ff; color: #1d4ed8; }
+.ad-overview-stat--green  .ad-overview-icon { background: #ecfdf5; color: #047857; }
+.ad-overview-stat--purple .ad-overview-icon { background: #f3e8ff; color: #7c3aed; }
+.ad-overview-stat--orange .ad-overview-icon { background: #ffedd5; color: #c2410c; }
+
+.ad-overview-stat--blue   .ad-overview-value { color: #1d4ed8; }
+.ad-overview-stat--green  .ad-overview-value { color: #047857; }
+.ad-overview-stat--purple .ad-overview-value { color: #7c3aed; }
+.ad-overview-stat--orange .ad-overview-value { color: #c2410c; }
+
+.ad-footnote {
+  margin: 4px 0 0 0;
+  text-align: center;
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+/* Responsive */
+@media (max-width: 1400px) {
+  .ad-stations-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (max-width: 1200px) {
+  .ad-overview-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 720px) {
+  .ad-stations-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ad-overview-grid { grid-template-columns: 1fr; }
+}

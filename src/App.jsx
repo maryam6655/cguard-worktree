@@ -2,6 +2,7 @@ import { useState } from "react";
 import Home from "./pages/Home";
 import AuthorityLogin from "./pages/AuthorityLogin";
 import AuthorityDashboard from "./pages/AuthorityDashboard";
+import ShelterManagementPage from "./pages/ShelterManagementPage";
 import FloodRiskPage from "./pages/FloodRiskPage";
 import SheltersPage from "./pages/SheltersPage";
 import Emergency from "./pages/Emergency";
@@ -43,9 +44,33 @@ function App() {
     setCurrentPage("emergency");
   };
 
+  const handleManageShelters = () => {
+    setCurrentPage("shelter-management");
+  };
+
+  const handleBackToDashboard = () => {
+    setCurrentPage("dashboard");
+  };
+
   // Render based on current page
   if (currentPage === "dashboard" && user) {
-    return <AuthorityDashboard user={user} onLogout={handleLogout} />;
+    return (
+      <AuthorityDashboard
+        user={user}
+        onLogout={handleLogout}
+        onManageShelters={handleManageShelters}
+      />
+    );
+  }
+
+  if (currentPage === "shelter-management" && user) {
+    return (
+      <ShelterManagementPage
+        user={user}
+        onBackToDashboard={handleBackToDashboard}
+        onLogout={handleLogout}
+      />
+    );
   }
 
   if (currentPage === "login") {

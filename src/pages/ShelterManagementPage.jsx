@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react';
 import TopNavbar from '../components/TopNavbar';
 import Sidebar from '../components/Sidebar';
 import ShelterManagementHeader from '../components/ShelterManagementHeader';
-import ShelterActionCards from '../components/ShelterActionCards';
 import ShelterTable from '../components/ShelterTable';
 import '../styles/AuthorityDashboard.css';
 import '../styles/ShelterManagementPage.css';
@@ -12,6 +11,9 @@ const initialShelters = [
     id: 1,
     name: 'Kot Saleem Community Shelter',
     location: 'Kot Saleem, Jhang District',
+    unionCouncil: 'Kot Saleem',
+    district: 'Jhang',
+    contactNumber: '+92 300 1112233',
     capacity: 180,
     occupied: 112,
     status: 'Available',
@@ -25,6 +27,9 @@ const initialShelters = [
     id: 2,
     name: 'Trimmu Relief Center',
     location: 'Trimmu, Jhang District',
+    unionCouncil: 'Trimmu',
+    district: 'Jhang',
+    contactNumber: '+92 301 2223344',
     capacity: 240,
     occupied: 240,
     status: 'Full',
@@ -38,6 +43,9 @@ const initialShelters = [
     id: 3,
     name: 'Qadirabad School Shelter',
     location: 'Qadirabad, Mandi Bahauddin District',
+    unionCouncil: 'Qadirabad',
+    district: 'Mandi Bahauddin',
+    contactNumber: '+92 302 3334455',
     capacity: 150,
     occupied: 70,
     status: 'Available',
@@ -51,6 +59,9 @@ const initialShelters = [
     id: 4,
     name: 'Khanki Health Post Shelter',
     location: 'Khanki, Gujrat District',
+    unionCouncil: 'Khanki',
+    district: 'Gujrat',
+    contactNumber: '+92 303 4445566',
     capacity: 120,
     occupied: 55,
     status: 'Available',
@@ -65,6 +76,9 @@ const initialShelters = [
 const emptyShelterForm = {
   name: '',
   location: '',
+  unionCouncil: '',
+  district: '',
+  contactNumber: '',
   capacity: '',
   occupied: '',
   status: 'Available',
@@ -88,7 +102,6 @@ const ShelterManagementPage = ({ user, onBackToDashboard, onLogout }) => {
   const [endDate, setEndDate] = useState('');
   const [shelters, setShelters] = useState(initialShelters);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isUpdatePickerOpen, setIsUpdatePickerOpen] = useState(false);
   const [editingShelterId, setEditingShelterId] = useState(null);
   const [formData, setFormData] = useState(emptyShelterForm);
 
@@ -109,15 +122,16 @@ const ShelterManagementPage = ({ user, onBackToDashboard, onLogout }) => {
   ]), []);
 
   const openForm = (shelter = null) => {
-    setIsUpdatePickerOpen(false);
-
     if (shelter) {
       setEditingShelterId(shelter.id);
       setFormData({
         name: shelter.name,
         location: shelter.location,
+        unionCouncil: shelter.unionCouncil ?? '',
+        district: shelter.district ?? '',
+        contactNumber: shelter.contactNumber ?? '',
         capacity: String(shelter.capacity),
-        occupied: String(shelter.occupied),
+        occupied: String(shelter.occupied ?? 0),
         status: shelter.status,
         facilities: { ...shelter.facilities }
       });
@@ -129,18 +143,30 @@ const ShelterManagementPage = ({ user, onBackToDashboard, onLogout }) => {
     setIsModalOpen(true);
   };
 
+  const handleDeleteShelter = (shelter) => {
+    if (!shelter) return;
+    const confirmed = window.confirm(
+      `Delete "${shelter.name}"? This shelter will no longer be visible to citizens.`
+    );
+    if (!confirmed) return;
+    setShelters((current) => current.filter((entry) => entry.id !== shelter.id));
+  };
+
   const closeForm = () => {
     setIsModalOpen(false);
     setEditingShelterId(null);
     setFormData(emptyShelterForm);
   };
 
-  const openUpdatePicker = () => {
-    setIsUpdatePickerOpen(true);
-  };
-
-  const closeUpdatePicker = () => {
-    setIsUpdatePickerOpen(false);
+  // "Update Existing" header button now just scrolls to the table where
+  // each row has its own Edit/Delete controls — no separate picker modal.
+  const scrollToShelterTable = () => {
+    const node = document.getElementById('shelter-table-section');
+    if (!node) return;
+    node.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // Brief highlight ring so the user sees where to act.
+    node.classList.add('shelter-table-card--flash');
+    window.setTimeout(() => node.classList.remove('shelter-table-card--flash'), 1400);
   };
 
   const handleFieldChange = (field, value) => {
@@ -173,6 +199,9 @@ const ShelterManagementPage = ({ user, onBackToDashboard, onLogout }) => {
       id: editingShelterId ?? Date.now(),
       name: formData.name.trim(),
       location: formData.location.trim(),
+      unionCouncil: formData.unionCouncil.trim(),
+      district: formData.district.trim(),
+      contactNumber: formData.contactNumber.trim(),
       capacity: parsedCapacity,
       occupied: normalizedOccupied,
       status: formData.status,
@@ -216,19 +245,13 @@ const ShelterManagementPage = ({ user, onBackToDashboard, onLogout }) => {
             <ShelterManagementHeader
               onBack={onBackToDashboard}
               onAdd={() => openForm()}
-              onUpdate={openUpdatePicker}
+              onUpdate={scrollToShelterTable}
             />
 
             <section className="shelter-content-shell">
               <div className="main-header shelter-management-header">
-                <p className="main-subtitle">Manage shelter capacity, occupancy, availability, and support facilities for flood response operations.</p>
+                <p className="main-subtitle">Add, update, and manage emergency shelters shown to citizens.</p>
               </div>
-
-              <ShelterActionCards
-                onAddShelter={() => openForm()}
-                onGoToUpdate={() => document.getElementById('shelter-table-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-                onViewCapacity={() => document.getElementById('shelter-summary')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-              />
 
               <section className="shelter-summary-row" id="shelter-summary" aria-label="Shelter summary">
                 <div className="summary-card">
@@ -257,7 +280,12 @@ const ShelterManagementPage = ({ user, onBackToDashboard, onLogout }) => {
                 </div>
               </section>
 
-              <ShelterTable shelters={shelters} facilityLabels={facilityLabels} onEdit={openForm} />
+              <ShelterTable
+                shelters={shelters}
+                facilityLabels={facilityLabels}
+                onEdit={openForm}
+                onDelete={handleDeleteShelter}
+              />
             </section>
           </div>
         </main>
@@ -289,11 +317,31 @@ const ShelterManagementPage = ({ user, onBackToDashboard, onLogout }) => {
                 </label>
 
                 <label className="form-field">
-                  <span>Location</span>
+                  <span>Location / Address</span>
                   <input
                     type="text"
                     value={formData.location}
                     onChange={(event) => handleFieldChange('location', event.target.value)}
+                    required
+                  />
+                </label>
+
+                <label className="form-field">
+                  <span>Union Council</span>
+                  <input
+                    type="text"
+                    value={formData.unionCouncil}
+                    onChange={(event) => handleFieldChange('unionCouncil', event.target.value)}
+                    required
+                  />
+                </label>
+
+                <label className="form-field">
+                  <span>District</span>
+                  <input
+                    type="text"
+                    value={formData.district}
+                    onChange={(event) => handleFieldChange('district', event.target.value)}
                     required
                   />
                 </label>
@@ -310,6 +358,16 @@ const ShelterManagementPage = ({ user, onBackToDashboard, onLogout }) => {
                 </label>
 
                 <label className="form-field">
+                  <span>Contact Number</span>
+                  <input
+                    type="tel"
+                    value={formData.contactNumber}
+                    onChange={(event) => handleFieldChange('contactNumber', event.target.value)}
+                    placeholder="e.g. +92 300 1234567"
+                  />
+                </label>
+
+                <label className="form-field">
                   <span>Occupied</span>
                   <input
                     type="number"
@@ -317,7 +375,6 @@ const ShelterManagementPage = ({ user, onBackToDashboard, onLogout }) => {
                     max={formData.capacity || undefined}
                     value={formData.occupied}
                     onChange={(event) => handleFieldChange('occupied', event.target.value)}
-                    required
                   />
                 </label>
 
@@ -329,6 +386,7 @@ const ShelterManagementPage = ({ user, onBackToDashboard, onLogout }) => {
                   >
                     <option value="Available">Available</option>
                     <option value="Full">Full</option>
+                    <option value="Inactive">Inactive</option>
                   </select>
                 </label>
               </div>
@@ -354,40 +412,10 @@ const ShelterManagementPage = ({ user, onBackToDashboard, onLogout }) => {
                   Cancel
                 </button>
                 <button type="submit" className="modal-primary-btn">
-                  {editingShelterId ? 'Save Changes' : 'Add Shelter'}
+                  Save Shelter
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-
-      {isUpdatePickerOpen && (
-        <div className="shelter-modal-overlay" onClick={closeUpdatePicker} role="presentation">
-          <div className="shelter-modal shelter-update-picker" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="update-picker-title">
-            <div className="shelter-modal-header">
-              <div>
-                <h2 id="update-picker-title">Update Existing Shelter</h2>
-                <p>Select a shelter from the current list to edit capacity, status, and facilities.</p>
-              </div>
-              <button className="modal-close-btn" type="button" onClick={closeUpdatePicker}>
-                Close
-              </button>
-            </div>
-
-            <div className="update-picker-list" role="list">
-              {shelters.map((shelter) => (
-                <div className="update-picker-item" key={shelter.id} role="listitem">
-                  <div>
-                    <h4>{shelter.name}</h4>
-                    <p>{shelter.location}</p>
-                  </div>
-                  <button type="button" className="table-action-btn" onClick={() => openForm(shelter)}>
-                    Update This Shelter
-                  </button>
-                </div>
-              ))}
-            </div>
           </div>
         </div>
       )}

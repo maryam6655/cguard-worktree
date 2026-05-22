@@ -1,9 +1,15 @@
-const ShelterTable = ({ shelters, facilityLabels, onEdit }) => {
+const STATUS_CLASS = {
+  Available: 'status-pill--available',
+  Full: 'status-pill--full',
+  Inactive: 'status-pill--inactive',
+};
+
+const ShelterTable = ({ shelters, facilityLabels, onEdit, onDelete }) => {
   return (
     <section className="shelter-table-card" id="shelter-table-section">
       <div className="shelter-table-header">
         <h2>Existing Shelters</h2>
-        <p>Manage shelter operations and keep facility and occupancy records up to date.</p>
+        <p>Manage shelter operations and keep facility, capacity, and contact records up to date.</p>
       </div>
 
       <div className="shelter-table-wrap">
@@ -11,11 +17,14 @@ const ShelterTable = ({ shelters, facilityLabels, onEdit }) => {
           <thead>
             <tr>
               <th>Shelter Name</th>
-              <th>Location</th>
+              <th>Location / Address</th>
+              <th>Union Council</th>
+              <th>District</th>
               <th>Capacity</th>
-              <th>Occupied</th>
+              {facilityLabels.map((facility) => (
+                <th key={facility.key}>{facility.label}</th>
+              ))}
               <th>Status</th>
-              <th>Facilities (Water, Medical, Food)</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -26,37 +35,53 @@ const ShelterTable = ({ shelters, facilityLabels, onEdit }) => {
                   <span className="shelter-name">{shelter.name}</span>
                 </td>
                 <td>{shelter.location}</td>
+                <td>{shelter.unionCouncil || '—'}</td>
+                <td>{shelter.district || '—'}</td>
                 <td>{shelter.capacity}</td>
-                <td>{shelter.occupied}</td>
+                {facilityLabels.map((facility) => (
+                  <td key={facility.key}>
+                    <span
+                      className={`facility-pill ${
+                        shelter.facilities?.[facility.key] ? 'is-available' : 'is-unavailable'
+                      }`}
+                    >
+                      {shelter.facilities?.[facility.key] ? 'Yes' : 'No'}
+                    </span>
+                  </td>
+                ))}
                 <td>
-                  <span className={`status-pill ${shelter.status === 'Available' ? 'status-pill--available' : 'status-pill--full'}`}>
+                  <span
+                    className={`status-pill ${
+                      STATUS_CLASS[shelter.status] ?? 'status-pill--available'
+                    }`}
+                  >
                     {shelter.status}
                   </span>
                 </td>
                 <td>
-                  <div className="facility-list">
-                    {facilityLabels.map((facility) => {
-                      const enabled = shelter.facilities[facility.key];
-
-                      return (
-                        <span key={facility.key} className={`facility-pill ${enabled ? 'is-available' : 'is-unavailable'}`}>
-                          {facility.shortLabel}
-                        </span>
-                      );
-                    })}
+                  <div className="table-actions">
+                    <button
+                      type="button"
+                      className="table-action-btn"
+                      onClick={() => onEdit(shelter)}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      className="table-action-btn table-action-btn--danger"
+                      onClick={() => onDelete?.(shelter)}
+                    >
+                      Delete
+                    </button>
                   </div>
-                </td>
-                <td>
-                  <button type="button" className="table-action-btn" onClick={() => onEdit(shelter)}>
-                    Edit / Update
-                  </button>
                 </td>
               </tr>
             ))}
 
             {shelters.length === 0 && (
               <tr>
-                <td colSpan="7" className="empty-table-state">
+                <td colSpan={6 + facilityLabels.length + 2} className="empty-table-state">
                   No shelters added yet. Use "+ Add Shelter" to create your first shelter.
                 </td>
               </tr>

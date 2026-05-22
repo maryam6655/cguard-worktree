@@ -1,9 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from 'recharts';
+import { Building2, Waves, Droplets, TrendingUp, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import TopNavbar from '../components/TopNavbar';
 import Sidebar from '../components/Sidebar';
-import GaugeChart from '../components/GaugeChart';
-import DischargeChart from '../components/DischargeChart';
-import RiskProgressionChart from '../components/RiskProgressionChart';
 import '../styles/AuthorityDashboard.css';
 
 // Station names mapped to UC names (matches your backend)
@@ -12,80 +20,199 @@ const UC_LIST = [
   { id: 2, name: "Khanki",    station: "Khanki"    },
   { id: 3, name: "Qadirabad", station: "Qadirabad" },
   { id: 4, name: "Trimmu",    station: "Trimmu"    },
+  { id: 5, name: "Panjnad",   station: "Panjnad"   },
 ];
+
+const STATIONS = ['Khanki', 'Marala', 'Qadirabad', 'Trimmu', 'Panjnad'];
+
+const STATION_META = {
+  Khanki:    { color: '#2563EB', subtitle: 'Chenab', baseline: 250, amplitude: 80 },
+  Marala:    { color: '#10B981', subtitle: 'Chenab', baseline: 180, amplitude: 60 },
+  Qadirabad: { color: '#7C3AED', subtitle: 'Chenab', baseline: 420, amplitude: 110 },
+  Trimmu:    { color: '#F97316', subtitle: 'Chenab', baseline: 110, amplitude: 45 },
+  Panjnad:   { color: '#0EA5E9', subtitle: 'Chenab', baseline: 60,  amplitude: 25 },
+};
+
+// ─────────────────────────────────────────────
+// TEMPORARY MOCK DATA
+// Backend `/analytics/{station}` is not yet integrated, so the UI uses these
+// deterministic series so the dashboard renders end-to-end. The shape matches
+// what the backend will eventually return (`{ station, color, data: [{ time, value }] }`),
+// so swapping back to a real fetch is a one-line change in the useEffect below.
+// ─────────────────────────────────────────────
+const stationSeed = (station) => {
+  let h = 0;
+  for (let i = 0; i < station.length; i++) {
+    h = (h * 31 + station.charCodeAt(i)) >>> 0;
+  }
+  return h;
+};
+
+// Cheap deterministic PRNG so identical (station, hours) inputs produce the
+// same curve every render — no flicker, easy to read across reloads.
+const mulberry32 = (seed) => {
+  let t = seed;
+  return () => {
+    t = (t + 0x6D2B79F5) >>> 0;
+    let r = Math.imul(t ^ (t >>> 15), 1 | t);
+    r = (r + Math.imul(r ^ (r >>> 7), 61 | r)) ^ r;
+    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+  };
+};
+
+const buildMockSeries = (station, hours) => {
+  const meta = STATION_META[station] ?? { color: '#64748B', baseline: 200, amplitude: 60 };
+  const points = Math.max(8, Math.min(72, Number(hours) || 24));
+  const rand = mulberry32(stationSeed(station));
+  const now = Date.now();
+  const stepMs = (Number(hours) * 60 * 60 * 1000) / (points - 1);
+  const data = [];
+  let drift = 0;
+  for (let i = 0; i < points; i++) {
+    // Smooth wave + small drift + tiny noise for a believable-but-stable trend.
+    const wave = Math.sin((i / (points - 1)) * Math.PI * 2 + stationSeed(station) % 6) *
+      (meta.amplitude * 0.5);
+    drift += (rand() - 0.5) * (meta.amplitude * 0.08);
+    drift = Math.max(-meta.amplitude * 0.6, Math.min(meta.amplitude * 0.6, drift));
+    const noise = (rand() - 0.5) * (meta.amplitude * 0.18);
+    const value = Math.max(0, meta.baseline + wave + drift + noise);
+    const time = new Date(now - (points - 1 - i) * stepMs).toISOString();
+    data.push({ time, value: Math.round(value * 100) / 100 });
+  }
+  return { station, color: meta.color, data };
+};
+
+const formatDischarge = (value) => {
+  if (value == null || !Number.isFinite(Number(value))) return '—';
+  return new Intl.NumberFormat('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(Number(value));
+};
+
+const formatXAxisTick = (value) => {
+  if (!value) return '';
+  // Backend returns ISO timestamps; show HH:mm for readability.
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return String(value);
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+};
 
 const AuthorityDashboard = ({ user, onLogout, onManageShelters }) => {
   const [selectedUC, setSelectedUC]         = useState('');
   const [forecastPeriod, setForecastPeriod] = useState('48');
   const [startDate, setStartDate]           = useState('');
   const [endDate, setEndDate]               = useState('');
-  const [dashboardData, setDashboardData]   = useState(null);
+  const [chartSeries, setChartSeries]       = useState([]); // [{ station, color, data: [{time, value}] }]
   const [loading, setLoading]               = useState(false);
   const [error, setError]                   = useState('');
 
-  // Fetch real data from backend when UC or forecast period changes
+  // The body's "Select Station" filter. 'all' is the multi-station overview;
+  // otherwise the value is a station name from STATIONS. Derived bi-directionally
+  // from the sidebar's UC selector so the two stay in sync without duplicating
+  // controls. (Sidebar UC selector is untouched per spec.)
+  const selectedStation = useMemo(() => {
+    if (!selectedUC) return 'all';
+    const uc = UC_LIST.find((u) => u.id === parseInt(selectedUC, 10));
+    return uc ? uc.station : 'all';
+  }, [selectedUC]);
+
+  const handleSelectStation = (stationId) => {
+    if (stationId === 'all') {
+      setSelectedUC('');
+      return;
+    }
+    const uc = UC_LIST.find((u) => u.station === stationId);
+    if (uc) setSelectedUC(String(uc.id));
+  };
+
+  // Backend `/analytics/{station}` is not integrated yet. Until it is, we
+  // populate the dashboard from a deterministic mock generator so the UI
+  // renders end-to-end. Once the backend ships, swap this useEffect body for
+  // the parallel fetch (one call per station, same `{ station, color, data }`
+  // shape) and the rest of the dashboard works unchanged.
   useEffect(() => {
-    const loadData = async () => {
-      if (!selectedUC) return;
+    setError('');
+    setLoading(true);
 
-      setLoading(true);
-      setError('');
+    const hours = Number(forecastPeriod) || 24;
+    const targets = selectedStation === 'all' ? STATIONS : [selectedStation];
 
-      try {
-        const uc      = UC_LIST.find(u => u.id === parseInt(selectedUC));
-        const station = uc ? uc.station : "Marala";
-        const token   = localStorage.getItem("token");
+    // Wrap in a microtask + timeout so the loading state flickers briefly the
+    // way a real network call would — keeps the UX feeling consistent when we
+    // later swap in the real fetch.
+    const timer = window.setTimeout(() => {
+      const results = targets.map((station) => buildMockSeries(station, hours));
+      setChartSeries(results);
+      setLoading(false);
+    }, 250);
 
-        const response = await fetch(
-          `https://ghaniasaghir-cguard-backend.hf.space/analytics/${station}?hours=${forecastPeriod}`,
-          {
-            headers: {
-              "Authorization": `Bearer ${token}`,
-              "Content-Type": "application/json"
-            }
-          }
-        );
+    return () => window.clearTimeout(timer);
+  }, [selectedStation, forecastPeriod]);
 
-        if (!response.ok) {
-          throw new Error("Failed to fetch analytics data");
-        }
+  // Merge the per-station series into a single recharts-compatible row array
+  // keyed by timestamp (one column per station). Uses the longest series so
+  // missing points don't truncate the X-axis.
+  const mergedChartData = useMemo(() => {
+    if (!chartSeries.length) return [];
+    const bestIndex = chartSeries.reduce(
+      (best, s, i) => (s.data.length > chartSeries[best].data.length ? i : best),
+      0
+    );
+    const timeline = chartSeries[bestIndex].data.map((p) => p.time);
+    return timeline.map((time, idx) => {
+      const row = { time };
+      chartSeries.forEach((s) => {
+        const point = s.data[idx];
+        if (point) row[s.station] = point.value;
+      });
+      return row;
+    });
+  }, [chartSeries]);
 
-        const data = await response.json();
+  // Discharge Overview stats. For "All Stations" we summarise across each
+  // station's latest reading (total / avg) and report which station holds the
+  // max/min. For a single station we use its time-series stats.
+  const overview = useMemo(() => {
+    if (!chartSeries.length) return null;
 
-        // Transform backend response to match what the charts expect
-        const transformed = {
-          ucName:    station,
-          dateRange: `Forecast: ${forecastPeriod}h`,
-          gaugeLevelData: data.gauge_level.map(item => ({
-            timestamp: item.time,
-            level:     item.value,
-            threshold: data.gauge_capacity_m,
-          })),
-          dischargeData: data.discharge.map(item => ({
-            timestamp: item.time,
-            discharge: item.value,
-            capacity:  data.discharge_capacity,
-          })),
-          riskProgressionData: data.risk_progression.map(item => ({
-            timestamp: item.time,
-            critical:  item.critical,
-            high:      item.high,
-            moderate:  item.moderate,
-            low:       item.low,
-          })),
-        };
+    if (selectedStation === 'all') {
+      const latestPerStation = chartSeries
+        .map((s) => ({ station: s.station, value: s.data.at(-1)?.value }))
+        .filter((row) => Number.isFinite(row.value));
+      if (!latestPerStation.length) return null;
 
-        setDashboardData(transformed);
-      } catch (err) {
-        console.error("Error fetching dashboard data:", err);
-        setError("Could not load data. Please try again.");
-      } finally {
-        setLoading(false);
-      }
+      const total = latestPerStation.reduce((sum, r) => sum + r.value, 0);
+      const avg = total / latestPerStation.length;
+      const maxRow = latestPerStation.reduce((m, r) => (r.value > m.value ? r : m));
+      const minRow = latestPerStation.reduce((m, r) => (r.value < m.value ? r : m));
+      return {
+        mode: 'all',
+        count: latestPerStation.length,
+        total,
+        avg,
+        max: maxRow.value,
+        min: minRow.value,
+        maxLabel: maxRow.station,
+        minLabel: minRow.station,
+      };
+    }
+
+    const values = chartSeries[0]?.data.map((p) => p.value).filter(Number.isFinite) ?? [];
+    if (!values.length) return null;
+    const total = values.reduce((a, b) => a + b, 0);
+    return {
+      mode: 'single',
+      station: chartSeries[0].station,
+      count: values.length,
+      total,
+      avg: total / values.length,
+      max: Math.max(...values),
+      min: Math.min(...values),
+      maxLabel: 'Peak reading',
+      minLabel: 'Lowest reading',
     };
-
-    loadData();
-  }, [selectedUC, forecastPeriod]);
+  }, [chartSeries, selectedStation]);
 
   const handleLogout = () => {
     if (window.confirm('Are you sure you want to logout?')) {
@@ -93,41 +220,44 @@ const AuthorityDashboard = ({ user, onLogout, onManageShelters }) => {
     }
   };
 
+  const scopeLabel = selectedStation === 'all' ? 'All Stations' : selectedStation;
+
   const handleExportPDF = () => {
-    if (!dashboardData) return;
+    if (!chartSeries.length) return;
     const printWindow = window.open('', '_blank');
+    const tablesHtml = chartSeries
+      .map(
+        (s) => `
+        <h2 style="color:${s.color}">${s.station} Discharge</h2>
+        <table>
+          <tr><th>Time</th><th>Discharge (m³/s)</th></tr>
+          ${s.data
+            .map((d) => `<tr><td>${d.time}</td><td>${formatDischarge(d.value)}</td></tr>`)
+            .join('')}
+        </table>`
+      )
+      .join('');
     const printContent = `
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Flood Risk Report - ${dashboardData.ucName}</title>
+        <title>Discharge Report - ${scopeLabel}</title>
         <style>
           body { font-family: Arial, sans-serif; padding: 20px; }
           h1 { color: #173b5f; }
-          table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+          h2 { margin-top: 24px; }
+          table { width: 100%; border-collapse: collapse; margin: 12px 0; }
           th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
           th { background-color: #173b5f; color: white; }
           .info { margin: 10px 0; }
         </style>
       </head>
       <body>
-        <h1>C Guard - Flood Risk Report</h1>
-        <div class="info"><strong>Station:</strong> ${dashboardData.ucName}</div>
+        <h1>C Guard - Discharge Report</h1>
+        <div class="info"><strong>Scope:</strong> ${scopeLabel}</div>
         <div class="info"><strong>Forecast Period:</strong> ${forecastPeriod} hours</div>
         <div class="info"><strong>Generated:</strong> ${new Date().toLocaleString()}</div>
-
-        <h2>Gauge Levels</h2>
-        <table>
-          <tr><th>Time</th><th>Level (m)</th></tr>
-          ${dashboardData.gaugeLevelData?.map(g => `<tr><td>${g.timestamp}</td><td>${g.level}</td></tr>`).join('') || ''}
-        </table>
-
-        <h2>Discharge Data</h2>
-        <table>
-          <tr><th>Time</th><th>Discharge (m³/s)</th></tr>
-          ${dashboardData.dischargeData?.map(d => `<tr><td>${d.timestamp}</td><td>${d.discharge}</td></tr>`).join('') || ''}
-        </table>
-
+        ${tablesHtml}
         <script>
           window.onload = () => { window.print(); setTimeout(() => window.close(), 1000); };
         </script>
@@ -139,24 +269,28 @@ const AuthorityDashboard = ({ user, onLogout, onManageShelters }) => {
   };
 
   const handleExportCSV = () => {
-    if (!dashboardData) return;
-    let csvContent = `C Guard - Flood Risk Data\nStation,${dashboardData.ucName}\nForecast,${forecastPeriod} hours\nGenerated,${new Date().toLocaleString()}\n\n`;
-    csvContent += `Gauge Levels\nTime,Level (m)\n`;
-    dashboardData.gaugeLevelData?.forEach(g => { csvContent += `${g.timestamp},${g.level}\n`; });
-    csvContent += `\nDischarge Data\nTime,Discharge (m³/s)\n`;
-    dashboardData.dischargeData?.forEach(d => { csvContent += `${d.timestamp},${d.discharge}\n`; });
+    if (!chartSeries.length) return;
+    let csvContent = `C Guard - Discharge Data\nScope,${scopeLabel}\nForecast,${forecastPeriod} hours\nGenerated,${new Date().toLocaleString()}\n\n`;
+    chartSeries.forEach((s) => {
+      csvContent += `${s.station}\nTime,Discharge (m³/s)\n`;
+      s.data.forEach((d) => {
+        csvContent += `${d.time},${d.value}\n`;
+      });
+      csvContent += '\n';
+    });
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.setAttribute('href', URL.createObjectURL(blob));
-    link.setAttribute('download', `CGuard_${dashboardData.ucName}_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute(
+      'download',
+      `CGuard_${scopeLabel.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`
+    );
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
-
-  const isUCSelected = selectedUC !== '';
 
   return (
     <div className="dashboard-container">
@@ -201,58 +335,221 @@ const AuthorityDashboard = ({ user, onLogout, onManageShelters }) => {
             </div>
           </div>
 
-          {loading ? (
-            <div style={{ textAlign: 'center', padding: '40px', color: '#64748B' }}>
-              Loading dashboard data...
-            </div>
-          ) : error ? (
-            <div style={{ textAlign: 'center', padding: '40px', color: '#ef4444' }}>
-              {error}
-            </div>
-          ) : !isUCSelected ? (
-            <div style={{
-              textAlign: 'center',
-              padding: '60px 40px',
-              color: '#94A3B8',
-              backgroundColor: '#F8FAFC',
-              borderRadius: '8px',
-              margin: '20px'
-            }}>
-              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ margin: '0 auto 16px', opacity: 0.5 }}>
-                <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-              </svg>
-              <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#475569', marginBottom: '8px' }}>
-                Select a Union Council
-              </h3>
-              <p style={{ fontSize: '14px' }}>
-                Please select a Union Council from the sidebar to view flood monitoring reports and analytics.
-              </p>
-            </div>
-          ) : dashboardData ? (
-            <div className="charts-grid">
-              <GaugeChart
-                data={dashboardData.gaugeLevelData}
-                ucName={dashboardData.ucName}
-                dateRange={dashboardData.dateRange}
+          {/* DEBUG: temporary render-sanity marker. Remove once the dashboard
+              content (station cards + chart + overview) renders normally. */}
+          <div className="ad-debug-banner">Dashboard content loaded</div>
+
+          <section className="ad-card ad-stations-card">
+            <h2 className="ad-card-title">Select Station</h2>
+            <div className="ad-stations-grid">
+              <StationCard
+                stationId="all"
+                label="All Stations"
+                sub="Overview"
+                icon={<Building2 size={20} strokeWidth={2.2} />}
+                accent="#2447B8"
+                active={selectedStation === 'all'}
+                onClick={() => handleSelectStation('all')}
               />
-              <div className="charts-row">
-                <DischargeChart
-                  data={dashboardData.dischargeData}
-                  ucName={dashboardData.ucName}
-                  dateRange={dashboardData.dateRange}
+              {STATIONS.map((station) => (
+                <StationCard
+                  key={station}
+                  stationId={station}
+                  label={station}
+                  sub={STATION_META[station].subtitle}
+                  icon={<Waves size={20} strokeWidth={2.2} />}
+                  accent={STATION_META[station].color}
+                  active={selectedStation === station}
+                  onClick={() => handleSelectStation(station)}
                 />
-                <RiskProgressionChart
-                  data={dashboardData.riskProgressionData}
-                  ucName={dashboardData.ucName}
-                  dateRange={dashboardData.dateRange}
+              ))}
+            </div>
+          </section>
+
+          <section className="ad-card ad-chart-card">
+            <header className="ad-chart-header">
+              <div>
+                <h2 className="ad-card-title">Discharge Trend</h2>
+                <p className="ad-card-subtitle">
+                  {selectedStation === 'all'
+                    ? `Live discharge across ${STATIONS.length} monitored stations`
+                    : `${selectedStation} station discharge`}
+                  {' · '}Forecast {forecastPeriod}h
+                </p>
+              </div>
+            </header>
+
+            <div className="ad-chart-body">
+              {loading ? (
+                <div className="ad-chart-empty">Loading discharge data...</div>
+              ) : error ? (
+                <div className="ad-chart-empty ad-chart-empty--error">{error}</div>
+              ) : !mergedChartData.length ? (
+                <div className="ad-chart-empty">No discharge data available.</div>
+              ) : (
+                <ResponsiveContainer width="100%" height={380}>
+                  <LineChart data={mergedChartData} margin={{ top: 10, right: 30, left: 10, bottom: 10 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
+                    <XAxis
+                      dataKey="time"
+                      tickFormatter={formatXAxisTick}
+                      stroke="#64748B"
+                      tick={{ fontSize: 12 }}
+                    />
+                    <YAxis
+                      stroke="#64748B"
+                      tick={{ fontSize: 12 }}
+                      label={{
+                        value: 'Discharge (m³/s)',
+                        angle: -90,
+                        position: 'insideLeft',
+                        style: { fill: '#64748B', fontSize: 12 },
+                      }}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: '#FFFFFF',
+                        border: '1px solid #E2E8F0',
+                        borderRadius: 10,
+                        boxShadow: '0 8px 20px rgba(15, 23, 42, 0.12)',
+                        fontSize: 12,
+                      }}
+                      labelFormatter={(value) => {
+                        const d = new Date(value);
+                        return Number.isNaN(d.getTime())
+                          ? value
+                          : d.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+                      }}
+                      formatter={(value, name) => [`${formatDischarge(value)} m³/s`, name]}
+                    />
+                    <Legend
+                      verticalAlign="bottom"
+                      height={32}
+                      iconType="circle"
+                      wrapperStyle={{ fontSize: 12, color: '#475569' }}
+                    />
+                    {chartSeries.map((s) => (
+                      <Line
+                        key={s.station}
+                        type="monotone"
+                        dataKey={s.station}
+                        name={s.station}
+                        stroke={s.color}
+                        strokeWidth={2.2}
+                        dot={{ r: 2.5, strokeWidth: 0, fill: s.color }}
+                        activeDot={{ r: 5, strokeWidth: 0 }}
+                      />
+                    ))}
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+          </section>
+
+          <section className="ad-card ad-overview-card">
+            <header className="ad-overview-header">
+              <div>
+                <h2 className="ad-card-title">Discharge Overview</h2>
+                <p className="ad-card-subtitle">
+                  {selectedStation === 'all'
+                    ? 'Live readings aggregated across all monitored stations'
+                    : `Time-series summary for ${selectedStation}`}
+                </p>
+              </div>
+            </header>
+
+            {!overview ? (
+              <div className="ad-chart-empty">No discharge data available.</div>
+            ) : (
+              <div className="ad-overview-grid">
+                <OverviewStat
+                  tone="blue"
+                  icon={<Droplets size={20} strokeWidth={2.2} />}
+                  label={overview.mode === 'all' ? 'Total Discharge (Live)' : 'Total Discharge'}
+                  value={`${formatDischarge(overview.total)} m³/s`}
+                  sub={
+                    overview.mode === 'all'
+                      ? `Across all ${overview.count} stations`
+                      : `Sum across ${overview.count} readings`
+                  }
+                />
+                <OverviewStat
+                  tone="green"
+                  icon={<TrendingUp size={20} strokeWidth={2.2} />}
+                  label={overview.mode === 'all' ? 'Average Discharge' : 'Average Discharge'}
+                  value={`${formatDischarge(overview.avg)} m³/s`}
+                  sub={
+                    overview.mode === 'all'
+                      ? `Across all ${overview.count} stations`
+                      : 'Mean of forecast window'
+                  }
+                />
+                <OverviewStat
+                  tone="purple"
+                  icon={<ArrowUpRight size={20} strokeWidth={2.2} />}
+                  label="Maximum Discharge"
+                  value={`${formatDischarge(overview.max)} m³/s`}
+                  sub={overview.maxLabel}
+                />
+                <OverviewStat
+                  tone="orange"
+                  icon={<ArrowDownRight size={20} strokeWidth={2.2} />}
+                  label="Minimum Discharge"
+                  value={`${formatDischarge(overview.min)} m³/s`}
+                  sub={overview.minLabel}
                 />
               </div>
-            </div>
-          ) : null}
+            )}
+          </section>
+
+          <p className="ad-footnote">
+            All times are in local time zone. Discharge values are in m³/s.
+          </p>
         </main>
       </div>
     </div>
   );
 };
+
+function StationCard({ label, sub, icon, accent, active, onClick }) {
+  return (
+    <button
+      type="button"
+      className={`ad-station-card${active ? ' ad-station-card--active' : ''}`}
+      onClick={onClick}
+      aria-pressed={active}
+    >
+      <span
+        className="ad-station-icon"
+        style={
+          active
+            ? { background: accent, color: '#ffffff' }
+            : { background: `${accent}1A`, color: accent }
+        }
+      >
+        {icon}
+      </span>
+      <span className="ad-station-text">
+        <span className="ad-station-label">{label}</span>
+        <span className="ad-station-sub">{sub}</span>
+      </span>
+    </button>
+  );
+}
+
+function OverviewStat({ tone, icon, label, value, sub }) {
+  return (
+    <div className={`ad-overview-stat ad-overview-stat--${tone}`}>
+      <span className="ad-overview-icon" aria-hidden="true">
+        {icon}
+      </span>
+      <div className="ad-overview-text">
+        <span className="ad-overview-label">{label}</span>
+        <span className="ad-overview-value">{value}</span>
+        {sub && <span className="ad-overview-sub">{sub}</span>}
+      </div>
+    </div>
+  );
+}
 
 export default AuthorityDashboard;

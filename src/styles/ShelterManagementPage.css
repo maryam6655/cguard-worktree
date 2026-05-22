@@ -226,6 +226,15 @@
   overflow: hidden;
   width: 100%;
   border: 1px solid #dbe6f2;
+  transition: box-shadow 220ms ease, border-color 220ms ease;
+}
+
+/* Brief highlight applied when "Update Existing" scrolls the page to the
+   table so the user sees where to act. JS adds the class and removes it
+   after ~1.4s. */
+.shelter-table-card--flash {
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.18), 0 10px 24px rgba(15, 23, 42, 0.12);
+  border-color: #2563eb;
 }
 
 .shelter-table-header {
@@ -307,6 +316,11 @@
   color: #b91c1c;
 }
 
+.status-pill--inactive {
+  background-color: #e2e8f0;
+  color: #475569;
+}
+
 .facility-list {
   display: flex;
   flex-wrap: wrap;
@@ -333,6 +347,20 @@
 
 .table-action-btn:hover {
   background-color: #0f2e4a;
+}
+
+.table-actions {
+  display: inline-flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.table-action-btn--danger {
+  background-color: #b91c1c;
+}
+
+.table-action-btn--danger:hover {
+  background-color: #991b1b;
 }
 
 .empty-table-state {

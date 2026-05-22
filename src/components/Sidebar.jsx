@@ -21,22 +21,6 @@ const Sidebar = ({
       </div>
       
       <div className="sidebar-section">
-        <label className="sidebar-label">Select Union Council</label>
-        <select 
-          className="sidebar-select" 
-          value={selectedUC} 
-          onChange={(e) => onUCChange(e.target.value)}
-        >
-          <option value="">Choose UC...</option>
-          {unitCommands.map(uc => (
-            <option key={uc.id} value={uc.id}>
-              {uc.name}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="sidebar-section">
         <label className="sidebar-label">Forecast Period</label>
         <div className="radio-group">
           <label className="radio-label">

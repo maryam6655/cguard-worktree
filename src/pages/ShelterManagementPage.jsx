@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import TopNavbar from '../components/TopNavbar';
 import Sidebar from '../components/Sidebar';
 import ShelterManagementHeader from '../components/ShelterManagementHeader';
@@ -6,72 +6,8 @@ import ShelterTable from '../components/ShelterTable';
 import '../styles/AuthorityDashboard.css';
 import '../styles/ShelterManagementPage.css';
 
-const initialShelters = [
-  {
-    id: 1,
-    name: 'Kot Saleem Community Shelter',
-    location: 'Kot Saleem, Jhang District',
-    unionCouncil: 'Kot Saleem',
-    district: 'Jhang',
-    contactNumber: '+92 300 1112233',
-    capacity: 180,
-    occupied: 112,
-    status: 'Available',
-    facilities: {
-      water: true,
-      medical: true,
-      food: true
-    }
-  },
-  {
-    id: 2,
-    name: 'Trimmu Relief Center',
-    location: 'Trimmu, Jhang District',
-    unionCouncil: 'Trimmu',
-    district: 'Jhang',
-    contactNumber: '+92 301 2223344',
-    capacity: 240,
-    occupied: 240,
-    status: 'Full',
-    facilities: {
-      water: true,
-      medical: true,
-      food: false
-    }
-  },
-  {
-    id: 3,
-    name: 'Qadirabad School Shelter',
-    location: 'Qadirabad, Mandi Bahauddin District',
-    unionCouncil: 'Qadirabad',
-    district: 'Mandi Bahauddin',
-    contactNumber: '+92 302 3334455',
-    capacity: 150,
-    occupied: 70,
-    status: 'Available',
-    facilities: {
-      water: true,
-      medical: false,
-      food: true
-    }
-  },
-  {
-    id: 4,
-    name: 'Khanki Health Post Shelter',
-    location: 'Khanki, Gujrat District',
-    unionCouncil: 'Khanki',
-    district: 'Gujrat',
-    contactNumber: '+92 303 4445566',
-    capacity: 120,
-    occupied: 55,
-    status: 'Available',
-    facilities: {
-      water: false,
-      medical: true,
-      food: true
-    }
-  }
-];
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || 'https://ghaniasaghir-cguard-backend.hf.space';
 
 const emptyShelterForm = {
   name: '',
@@ -95,20 +31,76 @@ const facilityLabels = [
   { key: 'food', label: 'Food Supply', shortLabel: 'Food' }
 ];
 
+const facilityNameToKey = {
+  'Drinking Water': 'water',
+  Water: 'water',
+  'Medical Aid': 'medical',
+  Medical: 'medical',
+  'Food Supply': 'food',
+  Food: 'food'
+};
+
+const getAuthToken = () =>
+  localStorage.getItem('token') ||
+  localStorage.getItem('authToken') ||
+  localStorage.getItem('access_token') ||
+  '';
+
+const facilitiesArrayToObject = (facilities) => {
+  const result = {
+    water: false,
+    medical: false,
+    food: false
+  };
+
+  if (!Array.isArray(facilities)) return result;
+
+  facilities.forEach((facility) => {
+    const key = facilityNameToKey[facility] || facilityNameToKey[String(facility).trim()];
+    if (key) result[key] = true;
+  });
+
+  return result;
+};
+
+const facilitiesObjectToArray = (facilities) =>
+  facilityLabels
+    .filter((facility) => facilities?.[facility.key])
+    .map((facility) => facility.label);
+
+const normalizeShelterFromBackend = (shelter) => ({
+  id: shelter.id,
+  name: shelter.name || '',
+  location: shelter.location || '',
+  unionCouncil: shelter.unionCouncil || shelter.uc_name || '',
+  district: shelter.district || '',
+  contactNumber: shelter.contactNumber || shelter.contact_number || '',
+  capacity: Number(shelter.capacity || 0),
+  occupied: Number(shelter.occupied || 0),
+  status: shelter.status || 'Available',
+  facilities: facilitiesArrayToObject(shelter.facilities),
+  updated_at: shelter.updated_at
+});
+
 const ShelterManagementPage = ({ user, onBackToDashboard, onLogout }) => {
   const [selectedUC, setSelectedUC] = useState('');
   const [forecastPeriod, setForecastPeriod] = useState('48');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [shelters, setShelters] = useState(initialShelters);
+  const [shelters, setShelters] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingShelterId, setEditingShelterId] = useState(null);
   const [formData, setFormData] = useState(emptyShelterForm);
+  const [loadingShelters, setLoadingShelters] = useState(false);
+  const [savingShelter, setSavingShelter] = useState(false);
+  const [deletingShelterId, setDeletingShelterId] = useState(null);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
 
   const availableShelters = shelters.filter((shelter) => shelter.status === 'Available').length;
   const fullShelters = shelters.filter((shelter) => shelter.status === 'Full').length;
-  const totalCapacity = shelters.reduce((total, shelter) => total + shelter.capacity, 0);
-  const totalOccupied = shelters.reduce((total, shelter) => total + shelter.occupied, 0);
+  const totalCapacity = shelters.reduce((total, shelter) => total + Number(shelter.capacity || 0), 0);
+  const totalOccupied = shelters.reduce((total, shelter) => total + Number(shelter.occupied || 0), 0);
 
   const unitCommands = useMemo(() => ([
     { id: 1, name: 'Kot Saleem' },
@@ -121,7 +113,46 @@ const ShelterManagementPage = ({ user, onBackToDashboard, onLogout }) => {
     { id: 8, name: 'Panjnad' }
   ]), []);
 
+  const loadShelters = async () => {
+    setLoadingShelters(true);
+    setErrorMessage('');
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/shelters`, {
+        method: 'GET',
+        headers: {
+          Accept: 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Could not load shelters. Status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const list = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.shelters)
+          ? data.shelters
+          : [];
+
+      setShelters(list.map(normalizeShelterFromBackend));
+    } catch (error) {
+      console.error('Shelter load error:', error);
+      setErrorMessage('Unable to load shelters from backend.');
+    } finally {
+      setLoadingShelters(false);
+    }
+  };
+
+  useEffect(() => {
+    loadShelters();
+  }, []);
+
   const openForm = (shelter = null) => {
+    setErrorMessage('');
+    setSuccessMessage('');
+
     if (shelter) {
       setEditingShelterId(shelter.id);
       setFormData({
@@ -143,13 +174,45 @@ const ShelterManagementPage = ({ user, onBackToDashboard, onLogout }) => {
     setIsModalOpen(true);
   };
 
-  const handleDeleteShelter = (shelter) => {
+  const handleDeleteShelter = async (shelter) => {
     if (!shelter) return;
+
     const confirmed = window.confirm(
       `Delete "${shelter.name}"? This shelter will no longer be visible to citizens.`
     );
     if (!confirmed) return;
-    setShelters((current) => current.filter((entry) => entry.id !== shelter.id));
+
+    const token = getAuthToken();
+    if (!token) {
+      setErrorMessage('Authority token missing. Please login again.');
+      return;
+    }
+
+    setDeletingShelterId(shelter.id);
+    setErrorMessage('');
+    setSuccessMessage('');
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/shelters/${shelter.id}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.detail || `Delete failed. Status: ${response.status}`);
+      }
+
+      setSuccessMessage('Shelter deleted successfully.');
+      await loadShelters();
+    } catch (error) {
+      console.error('Shelter delete error:', error);
+      setErrorMessage(error.message || 'Unable to delete shelter.');
+    } finally {
+      setDeletingShelterId(null);
+    }
   };
 
   const closeForm = () => {
@@ -158,13 +221,10 @@ const ShelterManagementPage = ({ user, onBackToDashboard, onLogout }) => {
     setFormData(emptyShelterForm);
   };
 
-  // "Update Existing" header button now just scrolls to the table where
-  // each row has its own Edit/Delete controls — no separate picker modal.
   const scrollToShelterTable = () => {
     const node = document.getElementById('shelter-table-section');
     if (!node) return;
     node.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    // Brief highlight ring so the user sees where to act.
     node.classList.add('shelter-table-card--flash');
     window.setTimeout(() => node.classList.remove('shelter-table-card--flash'), 1400);
   };
@@ -186,39 +246,74 @@ const ShelterManagementPage = ({ user, onBackToDashboard, onLogout }) => {
     }));
   };
 
-  const handleSubmit = (event) => {
-    event.preventDefault();
-
+  const buildBackendPayload = () => {
     const parsedCapacity = Number(formData.capacity);
     const parsedOccupied = Number(formData.occupied || 0);
+
+    if (!Number.isFinite(parsedCapacity) || parsedCapacity <= 0) {
+      throw new Error('Capacity must be greater than 0.');
+    }
+
     const normalizedOccupied = formData.status === 'Full'
       ? parsedCapacity
       : Math.min(Math.max(parsedOccupied, 0), parsedCapacity);
 
-    const normalizedShelter = {
-      id: editingShelterId ?? Date.now(),
+    return {
       name: formData.name.trim(),
       location: formData.location.trim(),
-      unionCouncil: formData.unionCouncil.trim(),
       district: formData.district.trim(),
-      contactNumber: formData.contactNumber.trim(),
       capacity: parsedCapacity,
       occupied: normalizedOccupied,
       status: formData.status,
-      facilities: { ...formData.facilities }
+      facilities: facilitiesObjectToArray(formData.facilities),
+      uc_id: null
     };
+  };
 
-    setShelters((current) => {
-      if (editingShelterId) {
-        return current.map((shelter) => (
-          shelter.id === editingShelterId ? normalizedShelter : shelter
-        ));
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+
+    const token = getAuthToken();
+    if (!token) {
+      setErrorMessage('Authority token missing. Please login again.');
+      return;
+    }
+
+    setSavingShelter(true);
+    setErrorMessage('');
+    setSuccessMessage('');
+
+    try {
+      const payload = buildBackendPayload();
+
+      const isEditing = Boolean(editingShelterId);
+      const url = isEditing
+        ? `${API_BASE_URL}/shelters/${editingShelterId}`
+        : `${API_BASE_URL}/shelters/add`;
+
+      const response = await fetch(url, {
+        method: isEditing ? 'PUT' : 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.detail || `Save failed. Status: ${response.status}`);
       }
 
-      return [normalizedShelter, ...current];
-    });
-
-    closeForm();
+      setSuccessMessage(isEditing ? 'Shelter updated successfully.' : 'Shelter added successfully.');
+      closeForm();
+      await loadShelters();
+    } catch (error) {
+      console.error('Shelter save error:', error);
+      setErrorMessage(error.message || 'Unable to save shelter.');
+    } finally {
+      setSavingShelter(false);
+    }
   };
 
   return (
@@ -253,26 +348,38 @@ const ShelterManagementPage = ({ user, onBackToDashboard, onLogout }) => {
                 <p className="main-subtitle">Add, update, and manage emergency shelters shown to citizens.</p>
               </div>
 
+              {errorMessage && (
+                <div className="shelter-feedback shelter-feedback--error">
+                  {errorMessage}
+                </div>
+              )}
+
+              {successMessage && (
+                <div className="shelter-feedback shelter-feedback--success">
+                  {successMessage}
+                </div>
+              )}
+
               <section className="shelter-summary-row" id="shelter-summary" aria-label="Shelter summary">
                 <div className="summary-card">
                   <span className="summary-label">Total Shelters</span>
-                  <strong>{shelters.length}</strong>
+                  <strong>{loadingShelters ? '...' : shelters.length}</strong>
                 </div>
                 <div className="summary-card summary-card--available">
                   <span className="summary-label">Available</span>
-                  <strong>{availableShelters}</strong>
+                  <strong>{loadingShelters ? '...' : availableShelters}</strong>
                 </div>
                 <div className="summary-card summary-card--full">
                   <span className="summary-label">Full</span>
-                  <strong>{fullShelters}</strong>
+                  <strong>{loadingShelters ? '...' : fullShelters}</strong>
                 </div>
                 <div className="summary-card">
                   <span className="summary-label">Total Capacity</span>
-                  <strong>{totalCapacity}</strong>
+                  <strong>{loadingShelters ? '...' : totalCapacity}</strong>
                 </div>
                 <div className="summary-card">
                   <span className="summary-label">Total Occupied</span>
-                  <strong>{totalOccupied}</strong>
+                  <strong>{loadingShelters ? '...' : totalOccupied}</strong>
                 </div>
                 <div className="summary-card">
                   <span className="summary-label">Utilization</span>
@@ -280,12 +387,17 @@ const ShelterManagementPage = ({ user, onBackToDashboard, onLogout }) => {
                 </div>
               </section>
 
-              <ShelterTable
-                shelters={shelters}
-                facilityLabels={facilityLabels}
-                onEdit={openForm}
-                onDelete={handleDeleteShelter}
-              />
+              {loadingShelters ? (
+                <div className="shelter-loading">Loading shelters from backend...</div>
+              ) : (
+                <ShelterTable
+                  shelters={shelters}
+                  facilityLabels={facilityLabels}
+                  onEdit={openForm}
+                  onDelete={handleDeleteShelter}
+                  deletingShelterId={deletingShelterId}
+                />
+              )}
             </section>
           </div>
         </main>
@@ -332,7 +444,7 @@ const ShelterManagementPage = ({ user, onBackToDashboard, onLogout }) => {
                     type="text"
                     value={formData.unionCouncil}
                     onChange={(event) => handleFieldChange('unionCouncil', event.target.value)}
-                    required
+                    placeholder="Optional display field"
                   />
                 </label>
 
@@ -363,7 +475,7 @@ const ShelterManagementPage = ({ user, onBackToDashboard, onLogout }) => {
                     type="tel"
                     value={formData.contactNumber}
                     onChange={(event) => handleFieldChange('contactNumber', event.target.value)}
-                    placeholder="e.g. +92 300 1234567"
+                    placeholder="Frontend display only for now"
                   />
                 </label>
 
@@ -408,11 +520,11 @@ const ShelterManagementPage = ({ user, onBackToDashboard, onLogout }) => {
               </div>
 
               <div className="shelter-form-actions">
-                <button type="button" className="modal-secondary-btn" onClick={closeForm}>
+                <button type="button" className="modal-secondary-btn" onClick={closeForm} disabled={savingShelter}>
                   Cancel
                 </button>
-                <button type="submit" className="modal-primary-btn">
-                  Save Shelter
+                <button type="submit" className="modal-primary-btn" disabled={savingShelter}>
+                  {savingShelter ? 'Saving...' : 'Save Shelter'}
                 </button>
               </div>
             </form>

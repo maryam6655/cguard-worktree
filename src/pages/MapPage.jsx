@@ -22,6 +22,41 @@ import {
 } from 'lucide-react';
 import '../styles/MapPage.css';
 
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || 'https://ghaniasaghir-cguard-backend.hf.space';
+
+// Name matching is the fallback path; punctuation is stripped to absorb
+// differences like "Chak No. 760" vs "Chak No 760".
+const normalizeName = (value) =>
+  String(value || '')
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, ' ')
+    .replace(/[^\w\s-]/g, '');
+
+// Pull the UC identifier out of a GeoJSON feature's properties. Tries every
+// reasonable field the source data might use; returns null if none exist.
+const getGeoUcId = (properties) => {
+  return (
+    properties?.UC_ID ||
+    properties?.uc_id ||
+    properties?.UC_CODE ||
+    properties?.uc_code ||
+    properties?.id ||
+    null
+  );
+};
+
+// Canonicalize UC IDs so "600", "UC-600", "uc-600" all collapse to "UC-600".
+const normalizeUcId = (value) => {
+  if (value == null) return '';
+  const text = String(value).trim().toUpperCase();
+  if (!text) return '';
+  if (text.startsWith('UC-')) return text;
+  if (/^\d+$/.test(text)) return `UC-${text}`;
+  return text;
+};
+
 // Custom hook for map controls
 function MapController({ searchQuery, onMapReady, ucData, ucGeoJson }) {
   const map = useMap();
@@ -48,15 +83,24 @@ function MapController({ searchQuery, onMapReady, ucData, ucGeoJson }) {
   }, [map, ucGeoJson]);
 
   useEffect(() => {
-    if (searchQuery && map && ucData.length > 0) {
-      const foundUC = ucData.find(uc =>
-        uc.name.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-      if (foundUC) {
-        map.flyTo([foundUC.lat, foundUC.lng], 13, { duration: 1.5 });
+    if (!searchQuery || !map || !ucGeoJson?.features?.length) return;
+
+    const query = normalizeName(searchQuery);
+    const foundFeature = ucGeoJson.features.find(feature => {
+      const props = feature.properties || {};
+      const name = normalizeName(props.UC_NAME || props.UC || props.name);
+      const district = normalizeName(props.DISTRICT || props.DISTRICT_NAME);
+      return name.includes(query) || district.includes(query);
+    });
+
+    if (foundFeature) {
+      const layer = L.geoJSON(foundFeature);
+      const bounds = layer.getBounds();
+      if (bounds.isValid()) {
+        map.fitBounds(bounds, { padding: [60, 60] });
       }
     }
-  }, [searchQuery, map, ucData]);
+  }, [searchQuery, map, ucGeoJson]);
 
   return null;
 }
@@ -96,37 +140,87 @@ const MapPage = () => {
 
   const clampRisk = (value) => Math.max(0, Math.min(100, Math.round(value)));
 
-  const handleSearch = (searchTerm) => {
-  // Your search logic here
-  console.log("Searching for:", searchTerm);
-  // For example, filter map markers, update state, etc.
-};
+  const handleSearch = (event) => {
+    event.preventDefault();
+  };
   // ─────────────────────────────────────────────
-  // FETCH REAL UC RISK DATA FROM BACKEND
+  // FETCH LIVE MAP RISK + BASIN OVERVIEW FROM BACKEND
+  // These calls must appear in DevTools → Network → Fetch/XHR.
   // ─────────────────────────────────────────────
   useEffect(() => {
-    const fetchRiskData = async () => {
+    let cancelled = false;
+
+    const fetchBackendMapData = async () => {
       try {
-        const response = await fetch("https://ghaniasaghir-cguard-backend.hf.space/all-ucs");
-        const data = await response.json();
-        
-        if (data.union_councils) {
-          setApiUCData(data.union_councils);
-          // Don't compute basin stats here — the backend only returns risk for
-          // a few monitored UCs (everything else came back null), so counting
-          // this set yields all zeros. The real counts are computed below from
-          // the merged GeoJSON features (which carry either the backend value
-          // or the dev random fallback) so the Basin Overview matches the
-          // colors actually painted on the map.
-          // TODO: when backend `/all-ucs` returns risk_percentage for every UC,
-          // we can stop relying on the GeoJSON-side fallback.
+        const [mapRiskRes, overviewRes] = await Promise.all([
+          fetch(`${API_BASE_URL}/api/map-risk`, { cache: 'no-store' }),
+          fetch(`${API_BASE_URL}/api/basin-overview`, { cache: 'no-store' }),
+        ]);
+
+        if (!mapRiskRes.ok) {
+          throw new Error(`/api/map-risk failed with status ${mapRiskRes.status}`);
+        }
+
+        if (!overviewRes.ok) {
+          throw new Error(`/api/basin-overview failed with status ${overviewRes.status}`);
+        }
+
+        const mapRiskData = await mapRiskRes.json();
+        const overviewData = await overviewRes.json();
+
+        console.log('✅ /api/map-risk response:', mapRiskData);
+        console.log('✅ /api/basin-overview response:', overviewData);
+
+        if (cancelled) return;
+
+        const mapRiskList = Array.isArray(mapRiskData)
+          ? mapRiskData
+          : Array.isArray(mapRiskData?.ucs)
+            ? mapRiskData.ucs
+            : Array.isArray(mapRiskData?.union_councils)
+              ? mapRiskData.union_councils
+              : [];
+
+        setApiUCData(mapRiskList);
+
+        if (overviewData?.success) {
+          const counts = overviewData.counts || {};
+          const summary = overviewData.summary || {};
+
+          setBasinStats((prev) => ({
+            ...prev,
+            total: overviewData.ucs_monitored || overviewData.total_ucs || overviewData.total || prev.total || 0,
+            low: counts.LOW ?? summary.low ?? overviewData.low ?? 0,
+            medium: counts.MEDIUM ?? summary.medium ?? overviewData.medium ?? 0,
+            high: counts.HIGH ?? summary.high ?? overviewData.high ?? 0,
+            veryHigh: counts.VERY_HIGH ?? summary.very_high ?? overviewData.very_high ?? overviewData.veryHigh ?? 0,
+            excHigh:
+              counts.EXCEPTIONALLY_HIGH ??
+              summary.exceptionally_high ??
+              overviewData.exceptionally_high ??
+              overviewData.exc_high ??
+              overviewData.excHigh ??
+              0,
+            lastUpdated: overviewData.last_updated ? new Date(overviewData.last_updated) : new Date(),
+          }));
         }
       } catch (error) {
-        console.error("Could not fetch UC risk data from backend:", error);
+        console.error('❌ Map backend integration error:', error);
+        if (!cancelled) {
+          setApiUCData([]);
+        }
       }
     };
 
-    fetchRiskData();
+    fetchBackendMapData();
+
+    // Refresh every minute so map/summary stay live without manual reload.
+    const intervalId = window.setInterval(fetchBackendMapData, 60000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
   }, []);
 
   // Load GeoJSON data
@@ -147,48 +241,74 @@ const MapPage = () => {
         const totalUcCount = ucGeoJSON?.features?.length ?? 0;
         setBasinStats(prev => ({ ...prev, total: totalUcCount }));
 
-        // Use REAL risk data from backend if available, otherwise random
+        // Merge backend risk data into GeoJSON features using a stable
+        // identifier first, with a name-based match as a safe fallback.
+        // Features without a backend record default to Low risk (yellow) so
+        // the map stays color-coded even when the API hasn't delivered data.
         ucGeoJSON.features = (ucGeoJSON.features ?? []).map(feature => {
-          const ucName = feature.properties.UC_NAME || feature.properties.UC || '';
-          const matchedUC = apiUCData.find(uc =>
-            ucName.toLowerCase().includes(uc.name.toLowerCase()) ||
-            uc.name.toLowerCase().includes(ucName.toLowerCase())
-          );
+          const props = feature.properties || {};
+          const geoIdKey = normalizeUcId(getGeoUcId(props));
+          const geoName = normalizeName(props.UC_NAME || props.UC || props.name);
+
+          // 1) ID match first — stable across name spelling differences.
+          let matchedUC = null;
+          if (geoIdKey) {
+            matchedUC = apiUCData.find((uc) => {
+              const backendId = normalizeUcId(uc.uc_id ?? uc.id);
+              return backendId && backendId === geoIdKey;
+            }) || null;
+          }
+
+          // 2) Fallback: name match (only if ID lookup found nothing).
+          if (!matchedUC && geoName) {
+            matchedUC = apiUCData.find((uc) => {
+              const backendName = normalizeName(
+                uc.uc_name || uc.name || uc.tooltip?.title
+              );
+              if (!backendName) return false;
+              return (
+                backendName === geoName ||
+                backendName.includes(geoName) ||
+                geoName.includes(backendName)
+              );
+            }) || null;
+          }
+
+          const mergedRisk = matchedUC
+            ? {
+                backend_id: matchedUC.uc_id ?? matchedUC.id ?? null,
+                backend_station: matchedUC.station ?? null,
+                risk_percentage: matchedUC.risk_percentage ?? 10,
+                risk_level: matchedUC.risk_level || 'Low',
+                risk_color: matchedUC.risk_color || getRiskColor(matchedUC.risk_percentage ?? 10),
+                distance_km:
+                  matchedUC.distance_km ??
+                  props.Distance_to_River_km ??
+                  null,
+                last_updated: matchedUC.last_updated || null,
+                backend_tooltip: matchedUC.tooltip || null,
+              }
+            : {
+                // No backend match — render Low so the polygon still gets
+                // a color rather than going grey/"no data".
+                backend_id: null,
+                backend_station: null,
+                risk_percentage: 10,
+                risk_level: 'Low',
+                risk_color: '#EAB308',
+                distance_km: props.Distance_to_River_km ?? null,
+                last_updated: null,
+                backend_tooltip: null,
+              };
 
           return {
             ...feature,
-            properties: {
-              ...feature.properties,
-              risk_percentage: matchedUC
-                ? matchedUC.risk_percentage
-                : Math.floor(Math.random() * 80) + 10
-            }
+            properties: { ...props, ...mergedRisk },
           };
         });
 
-        // Compute basin stats from the merged features so the Basin Overview
-        // counts the same colored polygons the user sees on the map. Without
-        // this, counts came from the raw API response (which has null risk for
-        // most UCs) and the dashboard showed zeros next to a fully-colored map.
-        let low = 0, medium = 0, high = 0, veryHigh = 0, excHigh = 0;
-        ucGeoJSON.features.forEach(feature => {
-          const pct = Number(feature.properties?.risk_percentage);
-          if (!Number.isFinite(pct)) return;
-          if (pct >= 81) excHigh++;
-          else if (pct >= 61) veryHigh++;
-          else if (pct >= 41) high++;
-          else if (pct >= 21) medium++;
-          else if (pct >= 0) low++;
-        });
-        setBasinStats(prev => ({
-          ...prev,
-          low,
-          medium,
-          high,
-          veryHigh,
-          excHigh,
-          lastUpdated: new Date(),
-        }));
+        // Basin Overview counts come from /api/basin-overview (see useEffect
+        // above). Frontend never invents risk values.
 
         setUcData(ucGeoJSON);
         setRiverData(await riverRes.json());
@@ -258,12 +378,14 @@ const MapPage = () => {
   };
 
   const ucStyle = (feature) => {
-    const pct = feature.properties.risk_percentage;
+    const props = feature.properties || {};
+    const pct = props.risk_percentage;
     const hasRisk = hasRiskValue(pct);
-    // Lighter, semi-transparent fills so the OSM basemap (roads, labels,
-    // terrain) stays clearly readable beneath the flood overlay.
+    // Prefer the backend-provided color (so its palette stays authoritative);
+    // fall back to our local percentage→color mapping if it's missing.
+    const fillColor = props.risk_color || (hasRisk ? getRiskColor(pct) : '#D1D5DB');
     return {
-      fillColor: hasRisk ? getRiskColor(pct) : '#D1D5DB',
+      fillColor,
       fillOpacity: hasRisk ? 0.36 : 0.06,
       color: '#CBD5E1',
       weight: 0.6,
@@ -290,37 +412,79 @@ const MapPage = () => {
     lineJoin: 'round'
   };
 
-  const onEachUCFeature = (feature, layer) => {
-    if (feature.properties && feature.properties.risk_percentage) {
-      const percentage = feature.properties.risk_percentage;
-      const ucName = feature.properties.UC_NAME || feature.properties.UC || 'UC';
-      const district = feature.properties.DISTRICT || feature.properties.DISTRICT_NAME || 'Hafizabad';
-      const popupContent = `
-        <div class="custom-popup">
-          <span class="uc-name">${ucName}</span>
-          <span class="uc-percentage" style="color: ${getRiskTextColor(percentage)}">${percentage}%</span>
-        </div>
-      `;
-      layer.bindTooltip(popupContent, {
-        permanent: false,
-        direction: 'top',
-        className: 'custom-tooltip'
-      });
-      
-      // Subtle hover: nudge fill opacity only, keep stroke/weight unchanged
-      // so the map doesn't visually jump when moving the mouse.
-      layer.on('mouseover', function () {
-        this.setStyle({ fillOpacity: 0.5 });
-      });
+  // Light HTML escape so unexpected backend strings can't inject markup
+  // into the tooltip.
+  const escapeHtml = (value) =>
+    String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
 
-      layer.on('mouseout', function () {
-        this.setStyle({ fillOpacity: hasRiskValue(percentage) ? 0.36 : 0.06 });
-      });
-      
-      layer.on('click', function() {
-        layer.openPopup();
-      });
+  const onEachUCFeature = (feature, layer) => {
+    const props = feature.properties || {};
+    const percentage = props.risk_percentage;
+    const hasRisk = hasRiskValue(percentage);
+    const pctText = hasRisk ? `${Math.round(Number(percentage))}%` : '—';
+    const pctColor = hasRisk
+      ? (props.risk_color || getRiskTextColor(percentage))
+      : '#64748B';
+
+    const ucName = props.UC_NAME || props.UC || props.name || 'Union Council';
+    const district = props.DISTRICT || props.DISTRICT_NAME || '';
+    const riskLevel = props.risk_level || (hasRisk ? '' : 'No data');
+    const station = props.backend_station;
+    const distance =
+      props.distance_km != null
+        ? Number(props.distance_km).toFixed(1)
+        : props.Distance_to_River_km != null
+          ? Number(props.Distance_to_River_km).toFixed(1)
+          : null;
+
+    // Build the rows defensively — missing fields are simply skipped instead
+    // of rendering "undefined".
+    const rows = [];
+    if (district) {
+      rows.push(`<div class="uc-tooltip-row"><span>District</span><strong>${escapeHtml(district)}</strong></div>`);
     }
+    if (riskLevel) {
+      rows.push(`<div class="uc-tooltip-row"><span>Risk Level</span><strong style="color:${pctColor}">${escapeHtml(riskLevel)}</strong></div>`);
+    }
+    if (station) {
+      rows.push(`<div class="uc-tooltip-row"><span>Source Station</span><strong>${escapeHtml(station)}</strong></div>`);
+    }
+    if (distance != null) {
+      rows.push(`<div class="uc-tooltip-row"><span>From River</span><strong>${distance} km</strong></div>`);
+    }
+
+    const popupContent = `
+      <div class="custom-popup">
+        <div class="uc-tooltip-head">
+          <span class="uc-name">${escapeHtml(ucName)}</span>
+          <span class="uc-percentage" style="color:${pctColor}">${pctText}</span>
+        </div>
+        ${rows.length ? `<div class="uc-tooltip-body">${rows.join('')}</div>` : ''}
+      </div>
+    `;
+
+    layer.bindTooltip(popupContent, {
+      permanent: false,
+      direction: 'top',
+      className: 'custom-tooltip',
+      sticky: true,
+    });
+
+    // Subtle hover — opacity only, no stroke/weight changes.
+    layer.on('mouseover', function () {
+      this.setStyle({ fillOpacity: 0.5 });
+    });
+    layer.on('mouseout', function () {
+      this.setStyle({ fillOpacity: hasRisk ? 0.36 : 0.06 });
+    });
+    layer.on('click', function () {
+      layer.openTooltip();
+    });
   };
 
   // Helper function to format time difference
@@ -392,6 +556,7 @@ const MapPage = () => {
           
           {ucData && (
             <GeoJSON
+              key={`uc-risk-layer-${apiUCData.length}-${basinStats.lastUpdated ? basinStats.lastUpdated.getTime() : 0}`}
               data={ucData}
               style={ucStyle}
               onEachFeature={onEachUCFeature}

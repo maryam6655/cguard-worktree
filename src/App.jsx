@@ -6,7 +6,11 @@ import ShelterManagementPage from "./pages/ShelterManagementPage";
 import FloodRiskPage from "./pages/FloodRiskPage";
 import SheltersPage from "./pages/SheltersPage";
 import Emergency from "./pages/Emergency";
+import ChatbotWidget from "./components/ChatbotWidget";
 import "./App.css";
+
+// Pages where the public chatbot should NOT appear (authority area + login).
+const CHATBOT_HIDDEN_PAGES = new Set(["login", "dashboard", "shelter-management"]);
 
 function App() {
   const [currentPage, setCurrentPage] = useState("home");
@@ -52,50 +56,50 @@ function App() {
     setCurrentPage("dashboard");
   };
 
-  // Render based on current page
+  // Pick the page to render (state-based routing — no react-router here).
+  let pageElement;
   if (currentPage === "dashboard" && user) {
-    return (
+    pageElement = (
       <AuthorityDashboard
         user={user}
         onLogout={handleLogout}
         onManageShelters={handleManageShelters}
       />
     );
-  }
-
-  if (currentPage === "shelter-management" && user) {
-    return (
+  } else if (currentPage === "shelter-management" && user) {
+    pageElement = (
       <ShelterManagementPage
         user={user}
         onBackToDashboard={handleBackToDashboard}
         onLogout={handleLogout}
       />
     );
-  }
-
-  if (currentPage === "login") {
-    return <AuthorityLogin onLogin={handleLogin} onBackToHome={handleBackToHome} />;
-  }
-
-  if (currentPage === "floodRisk") {
-    return (
+  } else if (currentPage === "login") {
+    pageElement = <AuthorityLogin onLogin={handleLogin} onBackToHome={handleBackToHome} />;
+  } else if (currentPage === "floodRisk") {
+    pageElement = (
       <FloodRiskPage
         onBackToHome={handleBackToHome}
         onViewShelters={handleViewShelters}
         onViewEmergency={handleViewEmergency}
       />
     );
+  } else if (currentPage === "shelters") {
+    pageElement = <SheltersPage onBack={handleCheckFloodRisk} selectedLocation={selectedLocation} />;
+  } else if (currentPage === "emergency") {
+    pageElement = <Emergency onAuthorityLogin={handleAuthorityLogin} onBack={handleCheckFloodRisk} />;
+  } else {
+    pageElement = <Home onAuthorityLogin={handleAuthorityLogin} onCheckFloodRisk={handleCheckFloodRisk} />;
   }
 
-  if (currentPage === "shelters") {
-    return <SheltersPage onBack={handleCheckFloodRisk} selectedLocation={selectedLocation} />;
-  }
+  const showChatbot = !CHATBOT_HIDDEN_PAGES.has(currentPage);
 
-  if (currentPage === "emergency") {
-    return <Emergency onAuthorityLogin={handleAuthorityLogin} onBack={handleCheckFloodRisk} />;
-  }
-
-  return <Home onAuthorityLogin={handleAuthorityLogin} onCheckFloodRisk={handleCheckFloodRisk} />;
+  return (
+    <>
+      {pageElement}
+      <ChatbotWidget hidden={!showChatbot} />
+    </>
+  );
 }
 
 export default App;

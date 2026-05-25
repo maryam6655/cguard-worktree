@@ -47,10 +47,9 @@ const BASIN_ZOOM = 8
 const GEOJSON_PATHS = ['/geojson/chenab_ucs_with_river_distance.geojson']
 const RIVER_PATH = '/geojson/chenab_river.geojson'
 
-// Backend API base.
-// If backend runs on another laptop, replace this with that laptop IP:
-// example: http://192.168.1.5:8000
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ||
+  'https://ghaniasaghir-cguard-backend.hf.space'
 const apiUrl = (path) => `${API_BASE_URL}${path}`
 
 // DEV TEST: the "Test Inside UC" button (visible only when import.meta.env.DEV)

@@ -1,6 +1,71 @@
+import React, { useState } from "react";
 import "../styles/Contact.css";
 
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ||
+  "https://ghaniasaghir-cguard-backend.hf.space";
+
 export default function Contact() {
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    subject: "",
+    message: "",
+  });
+
+  const [loading, setLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+
+  const handleChange = (e) => {
+    setFormData((prev) => ({
+      ...prev,
+      [e.target.name]: e.target.value,
+    }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    setLoading(true);
+    setSuccessMessage("");
+    setErrorMessage("");
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/contact`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to send message");
+      }
+
+      const data = await response.json();
+
+      setSuccessMessage(
+        data.message || "Message sent successfully."
+      );
+
+      setFormData({
+        name: "",
+        email: "",
+        subject: "",
+        message: "",
+      });
+    } catch (error) {
+      console.error(error);
+      setErrorMessage(
+        "Unable to send message. Please try again."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="contact-page">
 
@@ -27,30 +92,76 @@ export default function Contact() {
         </div>
 
         <div className="contact-card">
-          <form>
+
+          {successMessage && (
+            <div className="success-message">
+              {successMessage}
+            </div>
+          )}
+
+          {errorMessage && (
+            <div className="error-message">
+              {errorMessage}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit}>
+
             <div className="form-group">
               <label>Name</label>
-              <input type="text" placeholder="Enter your name" />
+              <input
+                type="text"
+                name="name"
+                placeholder="Enter your name"
+                value={formData.name}
+                onChange={handleChange}
+                required
+              />
             </div>
 
             <div className="form-group">
               <label>Email</label>
-              <input type="email" placeholder="Enter your email" />
+              <input
+                type="email"
+                name="email"
+                placeholder="Enter your email"
+                value={formData.email}
+                onChange={handleChange}
+                required
+              />
             </div>
 
             <div className="form-group">
               <label>Subject</label>
-              <input type="text" placeholder="Enter subject" />
+              <input
+                type="text"
+                name="subject"
+                placeholder="Enter subject"
+                value={formData.subject}
+                onChange={handleChange}
+                required
+              />
             </div>
 
             <div className="form-group">
               <label>Message</label>
-              <textarea placeholder="Write your message..." />
+              <textarea
+                name="message"
+                placeholder="Write your message..."
+                value={formData.message}
+                onChange={handleChange}
+                required
+              />
             </div>
 
-            <button type="submit" className="contact-btn">
-              Send Message
+            <button
+              type="submit"
+              className="contact-btn"
+              disabled={loading}
+            >
+              {loading ? "Sending..." : "Send Message"}
             </button>
+
           </form>
         </div>
       </section>

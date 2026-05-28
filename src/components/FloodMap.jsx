@@ -1,7 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useLanguage } from '../context/LanguageContext'
 import { Circle, GeoJSON, MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import * as turf from '@turf/turf'
+import { resolveUcName } from '../utils/ucName'
+import { loadUcGeoJSON, loadRiverGeoJSON } from '../utils/mapStatic'
 import {
   AlertTriangle,
   Bell,
@@ -13,6 +16,8 @@ import {
   LifeBuoy,
   Mail,
   MapPin,
+  Minus,
+  Plus,
   RefreshCw,
   Smartphone,
   Waves,
@@ -44,17 +49,15 @@ const DISTRICT_TO_STATION = {
 
 const BASIN_CENTER = [31.9, 73.9]
 const BASIN_ZOOM = 8
-const GEOJSON_PATHS = ['/geojson/chenab_ucs_with_river_distance.geojson']
-const RIVER_PATH = '/geojson/chenab_river.geojson'
+// UC and river GeoJSON paths now live in src/utils/mapStatic.js (shared cache
+// with MapPage). See STATIC_MAP_PATHS there for the canonical asset URLs.
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ||
-  'https://ghaniasaghir-cguard-backend.hf.space'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
 const apiUrl = (path) => `${API_BASE_URL}${path}`
 
 // DEV TEST: the "Test Inside UC" button (visible only when import.meta.env.DEV)
 // computes its test coordinate at runtime by taking turf.centerOfMass of the first
-// valid Polygon/MultiPolygon feature in chenab_ucs_with_river_distance.geojson, then
+// valid Polygon/MultiPolygon feature in chenab_ucs_with_river_distance_FIXED.geojson, then
 // verifies the centroid is interior with turf.booleanPointInPolygon. This guarantees
 // the simulated marker lands inside a real UC and exercises the full inside-UC card.
 
@@ -93,11 +96,69 @@ const stationForDistrict = (district = '') => {
 }
 
 const FLOOD_RISK_COLORS = {
+  NORMAL: '#22C55E',
   LOW: '#EAB308',
   MEDIUM: '#F97316',
   HIGH: '#EF4444',
   'VERY HIGH': '#9333EA',
+  'EXCEPTIONALLY HIGH': '#7F1D1D',
+  // Backwards-compatible alias for any legacy callers/data that still send
+  // "EXC. HIGH" — resolves to the same color as EXCEPTIONALLY HIGH.
   'EXC. HIGH': '#7F1D1D',
+}
+
+// Discharge-based risk classification mirrors the new backend thresholds:
+//   < 100k  => Normal
+//   < 150k  => Low
+//   < 200k  => Medium
+//   < 400k  => High
+//   < 600k  => Very High
+//   >= 600k => Exceptionally High
+// Used wherever the frontend itself derives a label from a raw discharge value.
+const classifyFloodRisk = (discharge) => {
+  const value = Number(discharge)
+  if (!Number.isFinite(value)) return 'Normal'
+  if (value < 100000) return 'Normal'
+  if (value < 150000) return 'Low'
+  if (value < 200000) return 'Medium'
+  if (value < 400000) return 'High'
+  if (value < 600000) return 'Very High'
+  return 'Exceptionally High'
+}
+
+// Percentage-based classifier that mirrors the displayed risk table:
+//   0–20%   => Normal
+//   21–40%  => Low
+//   41–60%  => Medium
+//   61–80%  => High
+//   81–95%  => Very High
+//   96–100% => Exceptionally High
+const classifyRiskPercentage = (percentage) => {
+  const value = Number(percentage)
+  if (!Number.isFinite(value)) return 'Normal'
+  const clamped = Math.max(0, Math.min(100, value))
+  if (clamped <= 20) return 'Normal'
+  if (clamped <= 40) return 'Low'
+  if (clamped <= 60) return 'Medium'
+  if (clamped <= 80) return 'High'
+  if (clamped <= 95) return 'Very High'
+  return 'Exceptionally High'
+}
+
+// Normalize any backend-provided category string (e.g. "moderate",
+// "very_high", "exc. high") to one of the canonical English labels.
+const normalizeRiskCategory = (value) => {
+  if (value == null) return null
+  const cleaned = String(value).trim().toLowerCase().replace(/[_\s.]+/g, ' ').trim()
+  if (!cleaned) return null
+  if (cleaned.includes('exceptionally') || cleaned.includes('exc high')) return 'Exceptionally High'
+  if (cleaned.includes('extreme')) return 'Exceptionally High'
+  if (cleaned.includes('very high')) return 'Very High'
+  if (cleaned === 'high' || cleaned.endsWith(' high')) return 'High'
+  if (cleaned.includes('medium') || cleaned.includes('moderate')) return 'Medium'
+  if (cleaned.includes('low') || cleaned.includes('minimal')) return 'Low'
+  if (cleaned.includes('normal') || cleaned.includes('safe')) return 'Normal'
+  return null
 }
 
 const normalizeCategory = (category) =>
@@ -118,6 +179,9 @@ const parseRiskNumber = (value) => {
   return num > 1 ? num : num * 100
 }
 
+// Returns the proper-case category name (e.g. "Exceptionally High") for user-visible
+// text. Both getFloodRiskColor and the FLOOD_RISK_COLORS lookup accept either case
+// because normalizeRiskCategory canonicalizes before the lookup.
 const getFloodRiskCategory = (feature) => {
   const properties = feature?.properties ?? {}
   const explicitCategory =
@@ -127,70 +191,31 @@ const getFloodRiskCategory = (feature) => {
     properties.category ??
     properties.risk_category
 
-  if (explicitCategory) {
-    const normalizedCategory = normalizeCategory(explicitCategory)
-    if (normalizedCategory.includes('EXC') && normalizedCategory.includes('HIGH')) return 'EXC. HIGH'
-    if (
-      (normalizedCategory.includes('VERY') || normalizedCategory.includes('EXTREME')) &&
-      normalizedCategory.includes('HIGH')
-    ) return 'VERY HIGH'
-    if (normalizedCategory.includes('EXTREME')) return 'EXC. HIGH'
-    if (normalizedCategory.includes('HIGH')) return 'HIGH'
-    if (normalizedCategory.includes('MEDIUM') || normalizedCategory.includes('MODERATE')) return 'MEDIUM'
-    if (normalizedCategory.includes('LOW') || normalizedCategory.includes('MINIMAL') || normalizedCategory.includes('SAFE')) return 'LOW'
-  }
+  const normalized = normalizeRiskCategory(explicitCategory)
+  if (normalized) return normalized
 
   const riskValue = parseRiskNumber(
     properties.risk_percentage ?? properties.riskPercentage ?? properties.risk_pct ?? properties.risk
   )
   if (riskValue == null) return null
-  if (riskValue >= 81) return 'EXC. HIGH'
-  if (riskValue >= 61) return 'VERY HIGH'
-  if (riskValue >= 41) return 'HIGH'
-  if (riskValue >= 21) return 'MEDIUM'
-  return 'LOW'
+  return classifyRiskPercentage(riskValue)
 }
 
 const getFloodRiskColor = (category) => {
-  const normalizedCategory = normalizeCategory(category)
-  if (normalizedCategory.includes('EXC') && normalizedCategory.includes('HIGH')) return FLOOD_RISK_COLORS['EXC. HIGH']
-  if (normalizedCategory.includes('VERY') && normalizedCategory.includes('HIGH')) return FLOOD_RISK_COLORS['VERY HIGH']
-  if (normalizedCategory.includes('HIGH')) return FLOOD_RISK_COLORS.HIGH
-  if (normalizedCategory.includes('MEDIUM')) return FLOOD_RISK_COLORS.MEDIUM
-  if (normalizedCategory.includes('LOW')) return FLOOD_RISK_COLORS.LOW
-  return '#CCCCCC'
+  const normalized = normalizeRiskCategory(category)
+  if (!normalized) return '#CCCCCC'
+  const key = normalized.toUpperCase()
+  return FLOOD_RISK_COLORS[key] ?? '#CCCCCC'
 }
 
 const CARD_RISK_TIERS = [
-  { min: 81, color: '#8B1A1A', label: 'Exceptionally High', short: 'EXC. HIGH' },
-  { min: 61, color: '#9333EA', label: 'Very High',          short: 'VERY HIGH' },
-  { min: 41, color: '#EF4444', label: 'High',               short: 'HIGH' },
-  { min: 21, color: '#FF6B1A', label: 'Medium',             short: 'MEDIUM' },
-  { min: 0,  color: '#F4B400', label: 'Low',                short: 'LOW' },
+  { min: 96, color: '#7F1D1D', label: 'Exceptionally High', short: 'EXCEPTIONALLY HIGH' },
+  { min: 81, color: '#9333EA', label: 'Very High',          short: 'VERY HIGH' },
+  { min: 61, color: '#EF4444', label: 'High',               short: 'HIGH' },
+  { min: 41, color: '#F97316', label: 'Medium',             short: 'MEDIUM' },
+  { min: 21, color: '#EAB308', label: 'Low',                short: 'LOW' },
+  { min: 0,  color: '#22C55E', label: 'Normal',             short: 'NORMAL' },
 ]
-
-const isMeaningfulUcName = (value) => {
-  if (value == null) return false
-  const str = String(value).trim()
-  if (!str) return false
-  if (/^Unknown[_\s-]?\d*$/i.test(str)) return false
-  return true
-}
-
-const resolveUcName = (properties = {}) => {
-  const candidates = [
-    properties.UC,
-    properties.UC_NAME,
-    properties.uc_name,
-    properties.New_Name,
-    properties.name,
-    properties.NAME,
-  ]
-  const meaningful = candidates.find(isMeaningfulUcName)
-  if (meaningful) return String(meaningful).trim()
-  const fallback = candidates.find((c) => c != null && String(c).trim() !== '')
-  return fallback ? String(fallback).trim() : 'Unnamed UC'
-}
 
 const resolveDistrict = (properties = {}) => {
   const candidates = [properties.DISTRICT, properties.district, properties.District]
@@ -249,9 +274,19 @@ const findContainingFeature = (features, lat, lng) => {
   return null
 }
 
+// Map a raw discharge (m³/s) onto the displayed 0–100 risk percentage scale.
+// Each segment lines up with a backend tier so the resulting percentage falls
+// into the matching slice of the percentage table (Normal 0–20 … Exc. High 96–100).
 const riskFromDischarge = (discharge) => {
   if (discharge == null || Number.isNaN(Number(discharge))) return null
-  return Math.min(100, Math.round((Number(discharge) / 50000) * 100))
+  const value = Math.max(0, Number(discharge))
+  if (value < 100000) return Math.round((value / 100000) * 20)              // Normal: 0–20
+  if (value < 150000) return Math.round(20 + ((value - 100000) / 50000) * 20)  // Low: 20–40
+  if (value < 200000) return Math.round(40 + ((value - 150000) / 50000) * 20)  // Medium: 40–60
+  if (value < 400000) return Math.round(60 + ((value - 200000) / 200000) * 20) // High: 60–80
+  if (value < 600000) return Math.round(80 + ((value - 400000) / 200000) * 15) // Very High: 80–95
+  // Exceptionally High: 95–100 with diminishing returns above 600k
+  return Math.min(100, Math.round(95 + Math.min(5, ((value - 600000) / 200000) * 5)))
 }
 
 const calculateRiskProgression = (baseRisk) => {
@@ -308,7 +343,7 @@ const stationMatch = (stationName, liveStations) => {
   )
 }
 
-function RiskMiniCard({ horizon, percentage }) {
+function RiskMiniCard({ horizon, percentage, t }) {
   const numeric = percentage == null || Number.isNaN(Number(percentage)) ? null : Number(percentage)
   const tier = tierForRiskPercentage(numeric)
   const color = tier?.color ?? '#cbd5e1'
@@ -327,7 +362,7 @@ function RiskMiniCard({ horizon, percentage }) {
       </div>
       <span className="pfr-mini-chip" style={chipStyle}>
         <span className="pfr-mini-dot" style={{ background: color }} aria-hidden="true" />
-        {tier?.short ?? 'NO DATA'}
+        {translateRiskShort(tier?.short, t)}
       </span>
       <div className="pfr-mini-bar">
         <div className="pfr-mini-bar-fill" style={{ width: `${fillWidth}%`, backgroundColor: color }} />
@@ -361,10 +396,24 @@ function AlertToggle({ icon: Icon, label, checked, onChange, disabled }) {
 }
 
 const THRESHOLD_LABELS = {
-  moderate: 'Moderate or above',
+  medium: 'Medium or above',
   high: 'High or above',
   veryhigh: 'Very High only',
 }
+
+
+const RISK_SHORT_TRANSLATION_KEYS = {
+  'EXC. HIGH': 'risk.exc_high',
+  'EXCEPTIONALLY HIGH': 'risk.exc_high',
+  'VERY HIGH': 'risk.very_high',
+  HIGH: 'risk.high',
+  MEDIUM: 'risk.medium',
+  LOW: 'risk.low',
+  NORMAL: 'risk.normal',
+}
+
+const translateRiskShort = (short, t) =>
+  short ? t(RISK_SHORT_TRANSLATION_KEYS[short] || 'floodmap.no_data', short) : t('floodmap.no_data', 'NO DATA')
 
 function PersonalFloodRiskCard({
   status,
@@ -379,9 +428,10 @@ function PersonalFloodRiskCard({
   alertSaving = false,
   alertMessage: parentAlertMessage = '',
 }) {
+  const { t } = useLanguage()
   const [emailAlerts, setEmailAlerts] = useState(true)
   const [smsAlerts, setSmsAlerts] = useState(true)
-  const [alertThreshold, setAlertThreshold] = useState('moderate')
+  const [alertThreshold, setAlertThreshold] = useState('medium')
   const [showAlertModal, setShowAlertModal] = useState(false)
   const [alertEmail, setAlertEmail] = useState('')
   const [alertPhone, setAlertPhone] = useState('')
@@ -400,15 +450,15 @@ function PersonalFloodRiskCard({
 
   const handleSaveAlerts = useCallback(async () => {
     if (!emailAlerts && !smsAlerts) {
-      setAlertMessage('Please select at least one alert channel.')
+      setAlertMessage(t('floodmap.alert.error.channel', 'Please select at least one alert channel.'))
       return
     }
     if (emailAlerts && !alertEmail.trim()) {
-      setAlertMessage('Please enter your email address.')
+      setAlertMessage(t('floodmap.alert.error.email', 'Please enter your email address.'))
       return
     }
     if (smsAlerts && !alertPhone.trim()) {
-      setAlertMessage('Please enter your phone number.')
+      setAlertMessage(t('floodmap.alert.error.phone', 'Please enter your phone number.'))
       return
     }
 
@@ -451,15 +501,15 @@ function PersonalFloodRiskCard({
   let iconShadow = 'rgba(37, 99, 235, 0.35)'
 
   if (isDetecting) {
-    pillLabel = 'DETECTING'
+    pillLabel = t('floodmap.status.detecting', 'DETECTING')
     pillStyle = { color: '#1d4ed8', background: '#eff6ff', borderColor: '#bfdbfe' }
   } else if (isOutside) {
-    pillLabel = 'OUTSIDE AREA'
+    pillLabel = t('floodmap.status.outside_area', 'OUTSIDE AREA')
     pillStyle = { color: '#B45309', background: '#FFF7ED', borderColor: '#fde68a' }
     iconBg = '#B45309'
     iconShadow = 'rgba(180, 83, 9, 0.35)'
   } else if (primaryTier) {
-    pillLabel = `${primaryTier.short} RISK`
+    pillLabel = `${translateRiskShort(primaryTier.short, t)} ${t('floodmap.status.risk', 'RISK')}`
     pillStyle = {
       color: primaryTier.color,
       background: `${primaryTier.color}14`,
@@ -500,13 +550,13 @@ function PersonalFloodRiskCard({
         <div className="pfr-warning" role="status">
           <AlertTriangle size={20} strokeWidth={2.2} />
           <div>
-            <div className="pfr-warning-title">Outside Chenab Basin coverage</div>
+            <div className="pfr-warning-title">{t('floodmap.outside.title', 'Outside Chenab Basin coverage')}</div>
             <div className="pfr-warning-body">
-              C Guard currently monitors flood-prone Union Councils along the Chenab River Basin.
+              {t('floodmap.outside.body', 'C Guard currently monitors flood-prone Union Councils along the Chenab River Basin.')}
             </div>
             <div className="pfr-warning-hint">
               <Compass size={13} strokeWidth={2.2} />
-              <span>Move toward monitored Chenab regions to view UC-level flood forecasts.</span>
+              <span>{t('floodmap.outside.hint', 'Move toward monitored Chenab regions to view UC-level flood forecasts.')}</span>
             </div>
           </div>
         </div>
@@ -518,19 +568,19 @@ function PersonalFloodRiskCard({
             <div className="pfr-detail-row">
               <MapPin size={15} strokeWidth={2.2} />
               <span>
-                <strong>Union Council:</strong> {uc.ucName || 'Unnamed UC'}
+                <strong>{t('floodmap.detail.union_council', 'Union Council')}:</strong> {uc.ucName || t('floodmap.unnamed_uc', 'Unnamed UC')}
               </span>
             </div>
             <div className="pfr-detail-row">
               <MapPin size={15} strokeWidth={2.2} />
               <span>
-                <strong>District:</strong> {uc.district || 'Unknown'}
+                <strong>{t('floodmap.detail.district', 'District')}:</strong> {uc.district || t('floodmap.unknown', 'Unknown')}
               </span>
             </div>
             <div className="pfr-detail-row">
               <Waves size={15} strokeWidth={2.2} />
               <span>
-                <strong>Distance from River:</strong>{' '}
+                <strong>{t('floodmap.detail.distance', 'Distance from River')}:</strong>{' '}
                 {uc.distanceToRiverKm != null
                   ? `${formatDistanceKm(uc.distanceToRiverKm)} km`
                   : '—'}
@@ -540,72 +590,72 @@ function PersonalFloodRiskCard({
               <div className="pfr-detail-row">
                 <Crosshair size={15} strokeWidth={2.2} />
                 <span>
-                  <strong>Coordinates:</strong>{' '}
+                  <strong>{t('floodmap.detail.coordinates', 'Coordinates')}:</strong>{' '}
                   {userLatLng[0].toFixed(4)}, {userLatLng[1].toFixed(4)}
                 </span>
               </div>
             )}
           </section>
 
-          <section className="pfr-risks-grid" aria-label="Forecast flood risk">
-            <RiskMiniCard horizon="24h Forecast" percentage={effectiveRisk.risk24h} />
-            <RiskMiniCard horizon="48h Forecast" percentage={effectiveRisk.risk48h} />
-            <RiskMiniCard horizon="72h Forecast" percentage={effectiveRisk.risk72h} />
+          <section className="pfr-risks-grid" aria-label={t('floodmap.forecast.aria', 'Forecast flood risk')}>
+            <RiskMiniCard horizon={t('floodmap.forecast.24h', '24h Forecast')} percentage={effectiveRisk.risk24h} t={t} />
+            <RiskMiniCard horizon={t('floodmap.forecast.48h', '48h Forecast')} percentage={effectiveRisk.risk48h} t={t} />
+            <RiskMiniCard horizon={t('floodmap.forecast.72h', '72h Forecast')} percentage={effectiveRisk.risk72h} t={t} />
           </section>
 
           {showPreviewNote && (
             <div className="pfr-preview-note">
               <Info size={13} strokeWidth={2.2} />
-              <span>Live ML flood forecast connected successfully.</span>
+              <span>{t('floodmap.preview.connected', 'Live ML flood forecast connected successfully.')}</span>
             </div>
           )}
 
           <div className="pfr-meta">
-            <span>Last updated: {lastUpdatedLabel}</span>
+            <span>{t('floodmap.meta.last_updated', 'Last updated')}: {lastUpdatedLabel}</span>
             <span className="pfr-meta-live">
               <RefreshCw size={12} strokeWidth={2.2} />
               <span className="pfr-live-dot" aria-hidden="true" />
-              Live Update
+              {t('floodmap.meta.live_update', 'Live Update')}
             </span>
           </div>
 
-          <section className="pfr-alerts" aria-label="Alert preferences">
+          <section className="pfr-alerts" aria-label={t('floodmap.alerts.aria', 'Alert preferences')}>
             <div className="pfr-alerts-header">
               <span className="pfr-alerts-icon" aria-hidden="true">
                 <Bell size={15} strokeWidth={2.2} />
               </span>
               <div className="pfr-alerts-title-group">
-                <strong>Alert Preferences</strong>
-                <span className="pfr-alerts-subtitle">Get flood alerts for this location.</span>
+                <strong>{t('floodmap.alerts.title', 'Alert Preferences')}</strong>
+                <span className="pfr-alerts-subtitle">{t('floodmap.alerts.subtitle', 'Get flood alerts for this location.')}</span>
               </div>
-              {alertsActive && <span className="pfr-alerts-active">Active</span>}
+              {alertsActive && <span className="pfr-alerts-active">{t('floodmap.alerts.active', 'Active')}</span>}
             </div>
 
             <div className="pfr-toggles">
               <AlertToggle
                 icon={Mail}
-                label="Email Alerts"
+                label={t('floodmap.alerts.email', 'Email Alerts')}
                 checked={emailAlerts}
                 onChange={setEmailAlerts}
               />
               <AlertToggle
                 icon={Smartphone}
-                label="SMS Alerts"
+                label={t('floodmap.alerts.sms', 'SMS Alerts')}
                 checked={smsAlerts}
                 onChange={setSmsAlerts}
               />
             </div>
 
             <label className="pfr-select-label">
-              <span>Notify me when risk is</span>
+              <span>{t('floodmap.alerts.notify', 'Notify me when risk is')}</span>
               <select
                 className="pfr-select"
                 value={alertThreshold}
                 onChange={(event) => setAlertThreshold(event.target.value)}
               >
-                <option value="moderate">Moderate or above</option>
-                <option value="high">High or above</option>
-                <option value="veryhigh">Very High only</option>
+                <option value="medium">{t('floodmap.threshold.medium', 'Medium or above')}</option>
+                <option value="high">{t('floodmap.threshold.high', 'High or above')}</option>
+                <option value="veryhigh">{t('floodmap.threshold.veryhigh', 'Very High only')}</option>
               </select>
             </label>
 
@@ -616,7 +666,7 @@ function PersonalFloodRiskCard({
               onClick={openAlertModal}
             >
               <Bell size={14} strokeWidth={2.2} />
-              {alertSaving ? 'Saving Alerts...' : 'Enable Location Alerts'}
+              {alertSaving ? t('floodmap.alerts.saving', 'Saving Alerts...') : t('floodmap.alerts.enable', 'Enable Location Alerts')}
             </button>
 
             {parentAlertMessage && (
@@ -629,7 +679,7 @@ function PersonalFloodRiskCard({
             <div className="pfr-alerts-info">
               <Info size={13} strokeWidth={2.2} />
               <span>
-                You will receive alerts based on the selected channels when flood risk reaches your chosen level.
+                {t('floodmap.alerts.info', 'You will receive alerts based on the selected channels when flood risk reaches your chosen level.')}
               </span>
             </div>
           </section>
@@ -641,8 +691,8 @@ function PersonalFloodRiskCard({
           <LifeBuoy size={20} strokeWidth={2.2} />
         </span>
         <span className="pfr-emergency-text">
-          <strong>View Emergency Resources</strong>
-          <span>Shelters, Contacts &amp; More</span>
+          <strong>{t('floodmap.emergency.title', 'View Emergency Resources')}</strong>
+          <span>{t('floodmap.emergency.subtitle', 'Shelters, Contacts & More')}</span>
         </span>
         <ChevronRight size={20} strokeWidth={2.2} className="pfr-emergency-chevron" />
       </button>
@@ -661,11 +711,11 @@ function PersonalFloodRiskCard({
             onClick={(event) => event.stopPropagation()}
           >
             <div className="pfr-modal-header">
-              <h3 id="pfr-modal-title" className="pfr-modal-title">Enable Flood Alerts</h3>
+              <h3 id="pfr-modal-title" className="pfr-modal-title">{t('floodmap.modal.title', 'Enable Flood Alerts')}</h3>
               <button
                 type="button"
                 className="pfr-modal-close"
-                aria-label="Close"
+                aria-label={t('floodmap.modal.close', 'Close')}
                 disabled={alertSaving}
                 onClick={closeAlertModal}
               >
@@ -675,26 +725,26 @@ function PersonalFloodRiskCard({
 
             <div className="pfr-modal-summary">
               <div>
-                <span>Union Council</span>
-                <strong>{uc?.ucName || 'Unnamed UC'}</strong>
+                <span>{t('floodmap.detail.union_council', 'Union Council')}</span>
+                <strong>{uc?.ucName || t('floodmap.unnamed_uc', 'Unnamed UC')}</strong>
               </div>
               <div>
-                <span>District</span>
-                <strong>{uc?.district || 'Unknown'}</strong>
+                <span>{t('floodmap.detail.district', 'District')}</span>
+                <strong>{uc?.district || t('floodmap.unknown', 'Unknown')}</strong>
               </div>
               <div>
-                <span>Risk threshold</span>
-                <strong>{THRESHOLD_LABELS[alertThreshold] ?? alertThreshold}</strong>
+                <span>{t('floodmap.modal.threshold', 'Risk threshold')}</span>
+                <strong>{t(`floodmap.threshold.${alertThreshold}`, THRESHOLD_LABELS[alertThreshold] ?? alertThreshold)}</strong>
               </div>
             </div>
 
             {emailAlerts && (
               <label className="pfr-modal-field">
-                <span>Email address</span>
+                <span>{t('floodmap.modal.email', 'Email address')}</span>
                 <input
                   type="email"
                   className="pfr-modal-input"
-                  placeholder="Enter your email address"
+                  placeholder={t('floodmap.modal.email_placeholder', 'Enter your email address')}
                   value={alertEmail}
                   onChange={(event) => setAlertEmail(event.target.value)}
                   disabled={alertSaving}
@@ -705,11 +755,11 @@ function PersonalFloodRiskCard({
 
             {smsAlerts && (
               <label className="pfr-modal-field">
-                <span>Phone number</span>
+                <span>{t('floodmap.modal.phone', 'Phone number')}</span>
                 <input
                   type="tel"
                   className="pfr-modal-input"
-                  placeholder="Enter phone number, e.g. +923001234567"
+                  placeholder={t('floodmap.modal.phone_placeholder', 'Enter phone number, e.g. +923001234567')}
                   value={alertPhone}
                   onChange={(event) => setAlertPhone(event.target.value)}
                   disabled={alertSaving}
@@ -732,7 +782,7 @@ function PersonalFloodRiskCard({
                 onClick={closeAlertModal}
                 disabled={alertSaving}
               >
-                Cancel
+                {t('floodmap.modal.cancel', 'Cancel')}
               </button>
               <button
                 type="button"
@@ -740,7 +790,7 @@ function PersonalFloodRiskCard({
                 onClick={handleSaveAlerts}
                 disabled={alertSaving}
               >
-                {alertSaving ? 'Saving Alerts...' : 'Save Alert Subscription'}
+                {alertSaving ? t('floodmap.alerts.saving', 'Saving Alerts...') : t('floodmap.modal.save', 'Save Alert Subscription')}
               </button>
             </div>
           </div>
@@ -889,8 +939,13 @@ function MapEffects({
   userUcFeature,
   searchQuery,
   resetViewTick,
+  onMapReady,
 }) {
   const map = useMap()
+
+  useEffect(() => {
+    if (typeof onMapReady === 'function') onMapReady(map)
+  }, [map, onMapReady])
 
   useEffect(() => {
     if (!geoJsonData?.features?.length) return
@@ -940,14 +995,24 @@ export default function FloodMap({
   onLiveUpdate,
   onViewEmergency,
 }) {
+  const { t } = useLanguage()
   const [devUserLocation, setDevUserLocation] = useState(null)
   const userLocation = devUserLocation ?? userLocationProp
+  const [leafletMap, setLeafletMap] = useState(null)
 
   const handleViewEmergency = useCallback(() => {
     if (typeof onViewEmergency === 'function') {
       onViewEmergency()
     }
   }, [onViewEmergency])
+
+  const handleZoomIn = useCallback(() => {
+    leafletMap?.zoomIn()
+  }, [leafletMap])
+
+  const handleZoomOut = useCallback(() => {
+    leafletMap?.zoomOut()
+  }, [leafletMap])
 
   const [geoJson, setGeoJson] = useState(null)
   const [riverGeoJson, setRiverGeoJson] = useState(null)
@@ -970,38 +1035,28 @@ export default function FloodMap({
     setLoadingGeoJson(true)
     setGeoJsonError('')
 
+    // UC and river layers load through the shared module-level cache
+    // (src/utils/mapStatic.js) so they are downloaded ONCE per session and
+    // shared with MapPage. River failure must never block UC rendering.
     try {
-      let response = null
-      for (const path of GEOJSON_PATHS) {
-        response = await fetch(path)
-        if (response.ok) break
-      }
-
-      if (!response || !response.ok) {
-        throw new Error('Unable to load Chenab UC boundaries.')
-      }
-
-      setGeoJson(await response.json())
-
-      try {
-        const riverResponse = await fetch(RIVER_PATH)
-        if (riverResponse.ok) {
-          setRiverGeoJson(await riverResponse.json())
-        } else {
-          setRiverGeoJson(null)
-        }
-      } catch {
-        setRiverGeoJson(null)
-      }
+      const ucJson = await loadUcGeoJSON()
+      setGeoJson(ucJson)
     } catch (error) {
-      console.error('GeoJSON load error:', error)
+      console.error('UC GeoJSON load error:', error)
       setGeoJson(null)
-      setRiverGeoJson(null)
-      setGeoJsonError('Unable to load Chenab UC boundaries.')
+      setGeoJsonError(t('floodmap.error.boundaries', 'Unable to load Chenab UC boundaries.'))
     } finally {
       setLoadingGeoJson(false)
     }
-  }, [])
+
+    try {
+      const riverJson = await loadRiverGeoJSON()
+      setRiverGeoJson(riverJson)
+    } catch (error) {
+      console.error('River GeoJSON load error:', error)
+      setRiverGeoJson(null)
+    }
+  }, [t])
 
   const loadLiveData = useCallback(async () => {
     setLoadingLive(true)
@@ -1017,12 +1072,16 @@ export default function FloodMap({
       setLastUpdated(new Date())
     } catch (error) {
       console.error('Live data load error:', error)
-      setLiveStations([])
-      setLiveError('Live flood data is currently unavailable.')
+      // Keep the previously-loaded live stations on screen so polygon
+      // colors don't blank out between refresh attempts. Only flag the
+      // warning so the UI can tell the user the data may be stale.
+      setLiveError(
+        t('floodmap.error.live_unavailable', 'Live data refresh failed. Showing last available data.')
+      )
     } finally {
       setLoadingLive(false)
     }
-  }, [])
+  }, [t])
 
   const loadBackendUcRisk = useCallback(async () => {
     try {
@@ -1272,14 +1331,14 @@ export default function FloodMap({
       } catch (error) {
         console.error('Personal flood risk error:', error)
         setPersonalRisk(null)
-        setPersonalRiskError('Unable to load backend flood risk for this UC.')
+        setPersonalRiskError(t('floodmap.error.personal_risk', 'Unable to load backend flood risk for this UC.'))
       } finally {
         setPersonalRiskLoading(false)
       }
     }
 
     fetchPersonalRisk()
-  }, [userUc, userLocation])
+  }, [userUc, userLocation, t])
 
   const matchedFeature = useMemo(() => {
     if (!searchQuery.trim() || !enrichedGeoJson?.features?.length) return null
@@ -1287,8 +1346,7 @@ export default function FloodMap({
     const query = normalizeText(searchQuery)
     return (
       enrichedGeoJson.features.find((feature) => {
-        const properties = feature?.properties ?? {}
-        const ucName = normalizeText(properties.UC_NAME ?? properties.uc_name ?? properties.UC ?? properties.name)
+        const ucName = normalizeText(resolveUcName(feature?.properties ?? {}))
         return ucName.includes(query)
       }) ?? null
     )
@@ -1348,11 +1406,11 @@ export default function FloodMap({
       const popupHtml = `
         <div style="min-width:220px;font-family:inherit">
           <div style="font-weight:700;font-size:16px;margin-bottom:8px;color:#0f172a">${ucName}</div>
-          <div style="display:flex;justify-content:space-between;gap:12px;padding:2px 0;color:#334155"><span>District</span><strong>${district}</strong></div>
-          <div style="display:flex;justify-content:space-between;gap:12px;padding:2px 0;color:#334155"><span>Station</span><strong>${station}</strong></div>
-          <div style="display:flex;justify-content:space-between;gap:12px;padding:2px 0;color:#334155"><span>Discharge</span><strong>${formatNumber(discharge)} m³/s</strong></div>
-          <div style="display:flex;justify-content:space-between;gap:12px;padding:2px 0;color:#334155"><span>Risk</span><strong>${riskPercentage == null ? 'N/A' : `${riskPercentage}%`}</strong></div>
-          <div style="display:flex;justify-content:space-between;gap:12px;padding:2px 0;color:#334155"><span>Category</span><strong>${riskCategory ?? 'N/A'}</strong></div>
+          <div style="display:flex;justify-content:space-between;gap:12px;padding:2px 0;color:#334155"><span>${t('floodmap.detail.district', 'District')}</span><strong>${district}</strong></div>
+          <div style="display:flex;justify-content:space-between;gap:12px;padding:2px 0;color:#334155"><span>${t('floodmap.popup.station', 'Station')}</span><strong>${station}</strong></div>
+          <div style="display:flex;justify-content:space-between;gap:12px;padding:2px 0;color:#334155"><span>${t('floodmap.popup.discharge', 'Discharge')}</span><strong>${formatNumber(discharge)} Cusec</strong></div>
+          <div style="display:flex;justify-content:space-between;gap:12px;padding:2px 0;color:#334155"><span>${t('floodmap.popup.risk', 'Risk')}</span><strong>${riskPercentage == null ? t('floodmap.not_available', 'N/A') : `${riskPercentage}%`}</strong></div>
+          <div style="display:flex;justify-content:space-between;gap:12px;padding:2px 0;color:#334155"><span>${t('floodmap.popup.category', 'Category')}</span><strong>${riskCategory ?? t('floodmap.not_available', 'N/A')}</strong></div>
         </div>
       `
 
@@ -1399,7 +1457,7 @@ export default function FloodMap({
         },
       })
     },
-    [matchedFeature, onUcSelect]
+    [matchedFeature, onUcSelect, t]
   )
 
   const riverStyle = useMemo(
@@ -1477,7 +1535,7 @@ export default function FloodMap({
     async ({ emailAlerts, smsAlerts, threshold, email, phone }) => {
       const activeUc = selectedUc ?? userUc
       if (!activeUc || !Array.isArray(userLocation) || userLocation.length < 2) {
-        return { ok: false, message: 'No active union council selected.' }
+        return { ok: false, message: t('floodmap.alert.no_uc', 'No active union council selected.') }
       }
 
       setAlertSaving(true)
@@ -1491,44 +1549,62 @@ export default function FloodMap({
             ? 'Very High only'
             : threshold === 'high'
               ? 'High or above'
-              : 'Moderate or above'
+              : 'Medium or above'
 
-        const response = await fetch(apiUrl('/api/alerts/subscribe'), {
+        const subscribeUrl = `${API_BASE_URL}/api/alerts/subscribe`
+        const payload = {
+          email_alerts: emailAlerts,
+          sms_alerts: smsAlerts,
+          threshold: thresholdLabel,
+          email: email ?? '',
+          phone: phone ?? '',
+          uc_name: activeUc.ucName,
+          district: activeUc.district,
+          latitude,
+          longitude,
+        }
+
+        console.log('Saving alert subscription to:', subscribeUrl)
+        console.log('Payload:', payload)
+
+        const response = await fetch(subscribeUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            email: email ?? '',
-            phone: phone ?? '',
-            uc_name: activeUc.ucName,
-            district: activeUc.district,
-            latitude,
-            longitude,
-            email_alerts: emailAlerts,
-            sms_alerts: smsAlerts,
-            threshold: thresholdLabel,
-          }),
+          body: JSON.stringify(payload),
         })
 
         if (!response.ok) {
+          // Try to capture the response body so the actual reason (validation
+          // error, CORS preflight, missing endpoint, etc.) shows up in console.
+          let errorData = null
+          try {
+            const contentType = response.headers.get('content-type') || ''
+            errorData = contentType.includes('application/json')
+              ? await response.json()
+              : await response.text()
+          } catch (parseError) {
+            errorData = `<unable to parse response body: ${parseError?.message ?? parseError}>`
+          }
+          console.error('Alert subscription failed:', response.status, errorData)
           throw new Error(`Alert subscription failed: ${response.status}`)
         }
 
-        const payload = await response.json()
-        const successMessage = payload?.message ?? 'Location alerts enabled successfully.'
+        const responsePayload = await response.json()
+        const successMessage = responsePayload?.message ?? t('floodmap.alert.success', 'Location alerts enabled successfully.')
         setAlertMessage(successMessage)
         return { ok: true, message: successMessage }
       } catch (error) {
         console.error('Alert subscription error:', error)
-        const failMessage = 'Unable to save alerts right now.'
+        const failMessage = t('floodmap.alert.fail', 'Unable to save alerts right now.')
         setAlertMessage(failMessage)
         return { ok: false, message: failMessage }
       } finally {
         setAlertSaving(false)
       }
     },
-    [selectedUc, userUc, userLocation]
+    [selectedUc, userUc, userLocation, t]
   )
 
   return (
@@ -1538,6 +1614,31 @@ export default function FloodMap({
           Reset View
         </button>
 
+        {/* Zoom controls — sit below the Map Guide on the left edge */}
+        <div className="fm-zoom-group" aria-label="Map zoom controls">
+          <button
+            type="button"
+            onClick={handleZoomIn}
+            className="fm-zoom-btn"
+            aria-label="Zoom in"
+            title="Zoom in"
+            disabled={!leafletMap}
+          >
+            <Plus size={18} strokeWidth={2.6} />
+          </button>
+          <span className="fm-zoom-divider" aria-hidden="true" />
+          <button
+            type="button"
+            onClick={handleZoomOut}
+            className="fm-zoom-btn"
+            aria-label="Zoom out"
+            title="Zoom out"
+            disabled={!leafletMap}
+          >
+            <Minus size={18} strokeWidth={2.6} />
+          </button>
+        </div>
+
         {import.meta.env.DEV && (
           <button
             type="button"
@@ -1546,10 +1647,10 @@ export default function FloodMap({
               ...styles.devTestButton,
               background: devUserLocation ? '#ef4444' : '#7c3aed',
             }}
-            title="Development-only: simulate a user location inside a Chenab UC"
+            title={t('floodmap.dev.title', 'Development-only: simulate a user location inside a Chenab UC')}
           >
             <span style={styles.devTestBadge}>DEV</span>
-            {devUserLocation ? 'Clear Test UC' : 'Test Inside UC'}
+            {devUserLocation ? t('floodmap.dev.clear', 'Clear Test UC') : t('floodmap.dev.test', 'Test Inside UC')}
           </button>
         )}
 
@@ -1572,6 +1673,7 @@ export default function FloodMap({
             userUcFeature={userUcFeature}
             searchQuery={searchQuery}
             resetViewTick={resetViewTick}
+            onMapReady={setLeafletMap}
           />
 
           {showUcBoundaries && enrichedGeoJson && (
@@ -1596,7 +1698,7 @@ export default function FloodMap({
 
           {userLocation && userLocationIcon && (
             <Marker position={userLocation} icon={userLocationIcon}>
-              <Popup>You are here</Popup>
+              <Popup>{t('floodmap.you_are_here', 'You are here')}</Popup>
             </Marker>
           )}
 
@@ -1619,9 +1721,9 @@ export default function FloodMap({
           <div style={styles.overlay}>
             <div style={styles.loadingCard}>
               <div style={styles.spinner} aria-hidden="true" />
-              <div style={styles.loadingTitle}>Preparing flood map</div>
+              <div style={styles.loadingTitle}>{t('floodmap.loading.title', 'Preparing flood map')}</div>
               <div style={styles.loadingText}>
-                {loadingGeoJson ? 'Loading Chenab UC boundaries.' : 'Refreshing live flood data.'}
+                {loadingGeoJson ? t('floodmap.loading.boundaries', 'Loading Chenab UC boundaries.') : t('floodmap.loading.live', 'Refreshing live flood data.')}
               </div>
             </div>
           </div>
@@ -1644,14 +1746,14 @@ export default function FloodMap({
           let title
           if (activeUc) {
             status = 'live'
-            const ucName = activeUc.ucName && String(activeUc.ucName).trim() ? activeUc.ucName : 'Your UC'
-            title = `${ucName} Flood Status`
+            const ucName = activeUc.ucName && String(activeUc.ucName).trim() ? activeUc.ucName : t('floodmap.your_uc', 'Your UC')
+            title = `${ucName} ${t('floodmap.flood_status', 'Flood Status')}`
           } else if (!hasUserLocation || stillDetecting) {
             status = 'detecting'
-            title = 'Detecting Your Location'
+            title = t('floodmap.title.detecting', 'Detecting Your Location')
           } else {
             status = 'outside'
-            title = 'Outside Chenab Basin Coverage'
+            title = t('floodmap.title.outside', 'Outside Chenab Basin Coverage')
           }
 
           const backendRiskProgression = personalRisk?.inside_coverage

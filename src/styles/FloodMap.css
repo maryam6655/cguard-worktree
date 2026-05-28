@@ -1,4 +1,84 @@
 /* ==================================================
+   ZOOM CONTROLS
+   Vertical +/− pill anchored below the Map Guide.
+   ================================================== */
+
+.fm-zoom-group {
+  position: absolute;
+  top: 720px;
+  left: 20px;
+  z-index: 1400;
+  display: flex;
+  flex-direction: column;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 12px 28px rgba(15, 23, 42, 0.12);
+  backdrop-filter: blur(12px) saturate(150%);
+  -webkit-backdrop-filter: blur(12px) saturate(150%);
+  transition: box-shadow 200ms ease, transform 120ms ease;
+}
+
+.fm-zoom-group:hover {
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 16px 36px rgba(15, 23, 42, 0.18);
+}
+
+.fm-zoom-btn {
+  width: 44px;
+  height: 44px;
+  background: transparent;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #1f2937;
+  padding: 0;
+  transition: background-color 160ms ease, color 160ms ease, transform 120ms ease;
+}
+
+.fm-zoom-btn:hover:not(:disabled) {
+  background: rgba(37, 99, 235, 0.10);
+  color: #1d4ed8;
+}
+
+.fm-zoom-btn:active:not(:disabled) {
+  background: rgba(37, 99, 235, 0.18);
+  transform: scale(0.94);
+}
+
+.fm-zoom-btn:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: -3px;
+}
+
+.fm-zoom-btn:disabled {
+  cursor: not-allowed;
+  color: #94a3b8;
+}
+
+.fm-zoom-divider {
+  display: block;
+  height: 1px;
+  margin: 0 10px;
+  background: rgba(15, 23, 42, 0.08);
+}
+
+@media (max-width: 900px) {
+  .fm-zoom-group {
+    /* On mobile the Map Guide sidebar overlays differently — anchor zoom
+       to the top-left instead so it doesn't drift off-screen. */
+    top: 80px;
+    left: 16px;
+  }
+}
+
+/* ==================================================
    PERSONAL FLOOD RISK CARD
    Premium overlay on right side of FloodMap
    ================================================== */

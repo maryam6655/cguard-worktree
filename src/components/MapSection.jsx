@@ -93,21 +93,20 @@ const MapSection = () => {
     ]
   });
 
-  // Risk level color mapping
+  // Risk level color mapping aligned with the 6-tier percentage table.
   const getRiskColor = (percentage) => {
-    if (percentage > 75) return '#dc2626'; // Critical - Red
-    if (percentage >= 50) return '#ea580c'; // High - Orange
-    if (percentage >= 25) return '#facc15'; // Moderate - Yellow
-    return '#16a34a'; // Low - Green
+    const value = Number(percentage);
+    if (!Number.isFinite(value)) return '#22c55e';
+    if (value <= 20) return '#22c55e'; // Normal
+    if (value <= 40) return '#eab308'; // Low
+    if (value <= 60) return '#f97316'; // Medium
+    if (value <= 80) return '#ef4444'; // High
+    if (value <= 95) return '#9333ea'; // Very High
+    return '#7f1d1d';                  // Exceptionally High
   };
 
   // Risk level text color for better contrast
-  const getRiskTextColor = (percentage) => {
-    if (percentage > 75) return '#dc2626';
-    if (percentage >= 50) return '#ea580c';
-    if (percentage >= 25) return '#ca8a04';
-    return '#16a34a';
-  };
+  const getRiskTextColor = (percentage) => getRiskColor(percentage);
 
   // Basin style function
   const basinStyle = (feature) => ({
@@ -288,28 +287,33 @@ const MapSection = () => {
             <div className="risk-levels">
               <h4>FLOOD RISK LEVELS</h4>
               <div className="risk-item">
-                <div className="risk-dot exc-high"></div>
-                <span>EXC. HIGH</span>
-                <span className="risk-percent">81–100%</span>
+                <div className="risk-dot exceptionally-high"></div>
+                <span>Exceptionally High</span>
+                <span className="risk-percent">96–100%</span>
               </div>
               <div className="risk-item">
                 <div className="risk-dot very-high"></div>
-                <span>VERY HIGH</span>
-                <span className="risk-percent">61–80%</span>
+                <span>Very High</span>
+                <span className="risk-percent">81–95%</span>
               </div>
               <div className="risk-item">
                 <div className="risk-dot high"></div>
-                <span>HIGH</span>
-                <span className="risk-percent">41–60%</span>
+                <span>High</span>
+                <span className="risk-percent">61–80%</span>
               </div>
               <div className="risk-item">
                 <div className="risk-dot medium"></div>
-                <span>MEDIUM</span>
-                <span className="risk-percent">21–40%</span>
+                <span>Medium</span>
+                <span className="risk-percent">41–60%</span>
               </div>
               <div className="risk-item">
                 <div className="risk-dot low"></div>
-                <span>LOW</span>
+                <span>Low</span>
+                <span className="risk-percent">21–40%</span>
+              </div>
+              <div className="risk-item">
+                <div className="risk-dot normal"></div>
+                <span>Normal</span>
                 <span className="risk-percent">0–20%</span>
               </div>
             </div>
@@ -348,7 +352,7 @@ const MapSection = () => {
               <div className="stat-icon moderate"></div>
               <div className="stat-content">
                 <span className="stat-number">47</span>
-                <span className="stat-label">Moderate Risk</span>
+                <span className="stat-label">Medium Risk</span>
               </div>
             </div>
           </div>

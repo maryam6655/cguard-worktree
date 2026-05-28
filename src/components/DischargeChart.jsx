@@ -22,7 +22,7 @@ const DischargeChart = ({ data, ucName, dateRange }) => {
           <YAxis 
             stroke="#64748B"
             style={{ fontSize: '12px' }}
-            label={{ value: 'Discharge (m³/s)', angle: -90, position: 'insideLeft', style: { fill: '#64748B' } }}
+            label={{ value: 'Discharge (Cusec)', angle: -90, position: 'insideLeft', style: { fill: '#64748B' } }}
           />
           <Tooltip 
             contentStyle={{ 

@@ -5,7 +5,9 @@
 
 :root {
   /* Primary Colors - PDMA Flood Categories (Official Palette) */
-  --color-exc-high: #7f1d1d;
+  --color-normal: #22c55e;
+  --color-exceptionally-high: #7f1d1d;
+  --color-exc-high: #7f1d1d; /* legacy alias */
   --color-very-high: #9333ea;
   --color-high: #ef4444;
   --color-medium: #f97316;
@@ -69,23 +71,29 @@
   top: 24px;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 1000;
+  z-index: 1200;
   width: 100%;
   max-width: 450px;
   padding: 0 16px;
+  /* Let the empty side-padding pass clicks/drags through to the map; only the
+     form itself stays interactive (see .search-form). */
+  pointer-events: none;
 }
 
 .search-form {
   display: flex;
   align-items: center;
-  background: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.92);
   border-radius: 16px;
-  padding: 12px 18px;
+  padding: 6px 8px 6px 16px;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.5);
-  transition: all 0.3s ease;
-  gap: 12px;
+  transition: box-shadow 0.3s ease, border-color 0.3s ease;
+  gap: 6px;
   backdrop-filter: blur(10px);
+  width: 100%;
+  box-sizing: border-box;
+  pointer-events: auto;
 }
 
 .search-form:focus-within {
@@ -93,7 +101,20 @@
   border-color: var(--color-primary);
 }
 
-.search-icon,
+/* Decorative leading magnifier — never intercepts clicks. */
+.search-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-light-gray);
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* Clickable mic — comfortable 40px tap target. */
 .mic-icon {
   display: flex;
   align-items: center;
@@ -101,17 +122,20 @@
   color: var(--color-light-gray);
   flex-shrink: 0;
   cursor: pointer;
-  transition: color 0.2s ease;
-  width: 20px;
-  height: 20px;
-}
-
-.search-icon {
-  opacity: 0.6;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  transition: color 0.2s ease, background-color 0.2s ease, transform 0.12s ease;
 }
 
 .mic-icon:hover {
   color: var(--color-primary);
+  background: rgba(15, 109, 184, 0.08);
+}
+
+.mic-icon:active {
+  background: rgba(15, 109, 184, 0.16);
+  transform: scale(0.94);
 }
 
 .mic-icon.listening {
@@ -132,6 +156,7 @@
 
 .search-input {
   flex: 1;
+  min-width: 0;
   border: none;
   outline: none;
   padding: 8px 4px;
@@ -276,12 +301,17 @@
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
 }
 
+.risk-dot.exceptionally-high,
 .risk-dot.exc-high {
-  background: var(--color-exc-high);
+  background: var(--color-exceptionally-high);
 }
 
 .risk-dot.very-high {
   background: var(--color-very-high);
+}
+
+.risk-dot.normal {
+  background: var(--color-normal);
 }
 
 .risk-dot.high {
@@ -422,6 +452,10 @@
   background: #1e40af;
 }
 
+.icon-box.normal-risk {
+  background: #22c55e;
+}
+
 .icon-box.low-risk {
   background: #eab308;
 }
@@ -438,6 +472,7 @@
   background: #9333ea;
 }
 
+.icon-box.exceptionally-high-risk,
 .icon-box.exc-high-risk {
   background: #7f1d1d;
 }
@@ -457,6 +492,10 @@
 
 .row-value.blue {
   color: #1e40af;
+}
+
+.row-value.green {
+  color: #22c55e;
 }
 
 .row-value.yellow {
@@ -555,7 +594,7 @@
 
 .zoom-controls {
   position: absolute;
-  top: 470px;
+  top: 520px;
   right: 24px;
   display: flex;
   flex-direction: column;
@@ -1179,6 +1218,7 @@
 }
 
 .basin-stat-card--blue   .basin-stat-icon { background: #eff6ff; color: #1d4ed8; }
+.basin-stat-card--green  .basin-stat-icon { background: #dcfce7; color: #15803d; }
 .basin-stat-card--yellow .basin-stat-icon { background: #fef9c3; color: #a16207; }
 .basin-stat-card--orange .basin-stat-icon { background: #ffedd5; color: #c2410c; }
 .basin-stat-card--red    .basin-stat-icon { background: #fee2e2; color: #b91c1c; }
@@ -1191,6 +1231,7 @@
 .basin-stat-card--purple .basin-stat-value { color: #7e22ce; }
 .basin-stat-card--maroon .basin-stat-value { color: #7f1d1d; }
 .basin-stat-card--blue   .basin-stat-value { color: #1d4ed8; }
+.basin-stat-card--green  .basin-stat-value { color: #15803d; }
 
 .basin-summary-meta {
   display: grid;

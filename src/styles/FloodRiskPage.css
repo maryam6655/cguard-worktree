@@ -177,6 +177,10 @@
   flex-shrink: 0;
 }
 
+.risk-dot.normal {
+  background: #22c55e;
+}
+
 .risk-dot.low {
   background: #eab308;
 }
@@ -193,6 +197,7 @@
   background: #9333ea;
 }
 
+.risk-dot.exceptionally-high,
 .risk-dot.exc-high {
   background: #7f1d1d;
 }
@@ -299,6 +304,7 @@
   flex-shrink: 0;
 }
 
+.risk-dot.exceptionally-high,
 .risk-dot.exc-high {
   background: #7f1d1d;
 }
@@ -317,6 +323,10 @@
 
 .risk-dot.low {
   background: #eab308;
+}
+
+.risk-dot.normal {
+  background: #22c55e;
 }
 
 .risk-label {
@@ -510,44 +520,76 @@
 }
 
 /* Search Container */
-/* Scoped to .flood-risk-page so this rule doesn't leak into MapPage,
-   which also uses .search-container (but expects position:absolute inside
-   .map-container). Without this scoping, MapPage's search bar gets pulled
-   to fixed/top:86px once FloodRiskPage.css is loaded. */
+/* All search rules are scoped to .flood-risk-page so they don't collide with
+   MapPage's own (unscoped) .search-* rules. Both pages reuse the same class
+   names, so scoping here keeps each page's search bar predictable regardless
+   of CSS load order. */
 .flood-risk-page .search-container {
   position: fixed;
   top: 86px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 1500;
+  width: 100%;
+  max-width: 420px;
+  padding: 0 16px;
+  box-sizing: border-box;
+  /* Empty side-padding passes interaction through to the map; the form below
+     re-enables pointer events for itself. */
+  pointer-events: none;
 }
 
-.search-form {
+.flood-risk-page .search-form {
   display: flex;
   align-items: center;
   background: white;
   border-radius: 25px;
-  padding: 10px 18px;
+  padding: 6px 8px 6px 18px;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
-  width: 360px;
+  width: 100%;
+  box-sizing: border-box;
   border: 1px solid #e5e7eb;
+  gap: 6px;
+  pointer-events: auto;
 }
 
-.search-icon,
-.mic-icon {
+/* Decorative leading magnifier — never intercepts clicks. */
+.flood-risk-page .search-icon {
   display: flex;
   align-items: center;
+  justify-content: center;
+  color: #6b7280;
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  pointer-events: none;
+}
+
+/* Clickable mic — comfortable 40px tap target. */
+.flood-risk-page .mic-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   color: #6b7280;
   flex-shrink: 0;
   cursor: pointer;
-  transition: color 0.2s ease;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  transition: color 0.2s ease, background-color 0.2s ease, transform 0.12s ease;
 }
 
-.mic-icon:hover {
+.flood-risk-page .mic-icon:hover {
   color: #3b82f6;
+  background: rgba(59, 130, 246, 0.08);
 }
 
-.mic-icon.listening {
+.flood-risk-page .mic-icon:active {
+  background: rgba(59, 130, 246, 0.16);
+  transform: scale(0.94);
+}
+
+.flood-risk-page .mic-icon.listening {
   color: #dc2626;
   animation: pulse 1s infinite;
 }
@@ -557,16 +599,18 @@
   50% { opacity: 0.5; }
 }
 
-.search-input {
+.flood-risk-page .search-input {
   flex: 1;
+  min-width: 0;
   border: none;
   outline: none;
   font-size: 0.95rem;
-  padding: 0 12px;
+  padding: 0 8px;
   color: #334155;
+  background: transparent;
 }
 
-.search-input::placeholder {
+.flood-risk-page .search-input::placeholder {
   color: #94a3b8;
 }
 
@@ -685,10 +729,6 @@
     bottom: 16px;
     padding: 1.25rem;
   }
-  
-  .search-form {
-    width: 300px;
-  }
 }
 
 @media (max-width: 480px) {
@@ -703,11 +743,7 @@
     top: auto;
     bottom: 12px;
   }
-  
-  .search-form {
-    width: 260px;
-  }
-  
+
   .header-right {
     gap: 0.75rem;
   }

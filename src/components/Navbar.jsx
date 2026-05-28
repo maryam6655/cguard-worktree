@@ -1,8 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import '../styles/Navbar.css';
 import CGuardLogoIcon from './CGuardLogoIcon';
+import { useLanguage } from '../context/LanguageContext';
 
 const Navbar = ({ onAuthorityLogin, showBackButton = false, onBack }) => {
+  const { language, setLanguage, t } = useLanguage();
+  // Urdu nav-label flag — when true, label spans get the .urdu-nav-text
+  // typography utility (font swap + small baseline nudge). Layout/positions
+  // never change between languages.
+  const isUrdu = language === 'ur';
   const [activeSection, setActiveSection] = useState('home');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -47,11 +53,33 @@ const Navbar = ({ onAuthorityLogin, showBackButton = false, onBack }) => {
   };
 
   const navItems = [
-    { id: 'home', label: 'Home' },
-    { id: 'map', label: 'Map' },
-    { id: 'emergency', label: 'Emergency' },
-    { id: 'contact', label: 'Contact' }
+    { id: 'home', label: t('navbar.home') },
+    { id: 'map', label: t('navbar.map') },
+    { id: 'emergency', label: t('navbar.emergency') },
+    { id: 'contact', label: t('navbar.contact') }
   ];
+
+  const LanguagePill = () => (
+    <div className="navbar-lang-toggle" role="group" aria-label={t('navbar.lang_toggle_label')}>
+      <button
+        type="button"
+        className={`navbar-lang-btn ${language === 'en' ? 'is-active' : ''}`}
+        onClick={() => setLanguage('en')}
+        aria-pressed={language === 'en'}
+      >
+        {t('navbar.lang_en')}
+      </button>
+      <span className="navbar-lang-divider" aria-hidden="true">|</span>
+      <button
+        type="button"
+        className={`navbar-lang-btn navbar-lang-btn--ur ${language === 'ur' ? 'is-active' : ''}`}
+        onClick={() => setLanguage('ur')}
+        aria-pressed={language === 'ur'}
+      >
+        {t('navbar.lang_ur')}
+      </button>
+    </div>
+  );
 
   return (
     <nav className={`navbar-main ${isScrolled ? 'scrolled' : ''}`}>
@@ -73,20 +101,29 @@ const Navbar = ({ onAuthorityLogin, showBackButton = false, onBack }) => {
                   className={`navbar-link ${activeSection === item.id ? 'active' : ''}`}
                   onClick={() => scrollToSection(item.id)}
                 >
-                  {item.label}
+                  <span className={isUrdu ? 'urdu-nav-text' : undefined}>
+                    {item.label}
+                  </span>
                 </li>
               ))}
             </ul>
 
-            <button className="navbar-login-btn" onClick={onAuthorityLogin}>
-              Authority Login
-            </button>
+            <div className="navbar-right-actions">
+              <LanguagePill />
+              <button className="navbar-login-btn" onClick={onAuthorityLogin}>
+                <span className={isUrdu ? 'urdu-nav-text' : undefined}>
+                  {t('navbar.authority_login')}
+                </span>
+              </button>
+            </div>
           </>
         )}
 
         {showBackButton && (
           <button className="navbar-back-btn" onClick={onBack} type="button">
-            ← Back to Previous Page
+            <span className={isUrdu ? 'urdu-nav-text' : undefined}>
+              {t('navbar.back')}
+            </span>
           </button>
         )}
 
@@ -111,11 +148,18 @@ const Navbar = ({ onAuthorityLogin, showBackButton = false, onBack }) => {
               className={`mobile-menu-item ${activeSection === item.id ? 'active' : ''}`}
               onClick={() => scrollToSection(item.id)}
             >
-              {item.label}
+              <span className={isUrdu ? 'urdu-nav-text' : undefined}>
+                {item.label}
+              </span>
             </div>
           ))}
+          <div className="mobile-menu-lang">
+            <LanguagePill />
+          </div>
           <button className="mobile-login-btn" onClick={() => { onAuthorityLogin(); setIsMenuOpen(false); }}>
-            Authority Login
+            <span className={isUrdu ? 'urdu-nav-text' : undefined}>
+              {t('navbar.authority_login')}
+            </span>
           </button>
         </div>
       )}

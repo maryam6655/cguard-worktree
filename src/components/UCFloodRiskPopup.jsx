@@ -2,11 +2,18 @@ import React from 'react';
 import '../styles/UCFloodRiskPopup.css';
 
 const UCFloodRiskPopup = ({ ucData, onClose, onViewShelters }) => {
+  // Aligned with the 6-tier percentage table:
+  //   0–20% Normal, 21–40% Low, 41–60% Medium, 61–80% High,
+  //   81–95% Very High, 96–100% Exceptionally High
   const getProgressColor = (percentage) => {
-    if (percentage > 75) return '#dc2626';
-    if (percentage >= 50) return '#ea580c';
-    if (percentage >= 25) return '#facc15';
-    return '#22c55e';
+    const value = Number(percentage);
+    if (!Number.isFinite(value)) return '#22c55e';
+    if (value <= 20) return '#22c55e'; // Normal
+    if (value <= 40) return '#eab308'; // Low
+    if (value <= 60) return '#f97316'; // Medium
+    if (value <= 80) return '#ef4444'; // High
+    if (value <= 95) return '#9333ea'; // Very High
+    return '#7f1d1d';                  // Exceptionally High
   };
 
   return (

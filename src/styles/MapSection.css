@@ -183,6 +183,11 @@
   flex-shrink: 0;
 }
 
+.risk-dot.normal {
+  background: #22c55e;
+}
+
+.risk-dot.exceptionally-high,
 .risk-dot.exc-high {
   background: #7f1d1d;
 }

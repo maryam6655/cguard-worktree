@@ -1,3 +1,8 @@
+/* Urdu fonts for the language pill (Nastaliq) and navbar labels (Sans Arabic).
+   Must sit at the very top of the file — `@import` rules have to precede any
+   other CSS statements per the CSS spec. */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu:wght@500;700&family=Noto+Sans+Arabic:wght@500;600;700&display=swap');
+
 /* Fixed Navbar */
 .navbar-main {
   position: fixed;
@@ -285,4 +290,180 @@
   .navbar-content {
     padding: 1rem;
   }
+}
+
+/* Noto Nastaliq Urdu + Noto Sans Arabic are imported at the top of this file.
+   See the @import at line 4. */
+
+/* ==================================================
+   URDU NAV LABEL UTILITY
+   Applied to nav link / login / back button text only when the active
+   language is Urdu. Purely typographic — does NOT change layout, flex
+   direction, or text alignment. Keeps the navbar visually identical to
+   English with translated text.
+   ================================================== */
+.urdu-nav-text {
+  font-family: 'Noto Sans Arabic', 'Noto Nastaliq Urdu',
+    'Jameel Noori Nastaleeq', 'Segoe UI', Tahoma, sans-serif;
+  font-size: 0.94em;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: 0;
+  /* Tiny baseline nudge — Sans Arabic sits ~1px lower than the Latin baseline
+     in our navbar font, so this restores vertical centering against the
+     English siblings. */
+  transform: translateY(-1px);
+}
+
+/* ==================================================
+   LANGUAGE TOGGLE PILL
+   Sits between the centered nav links and the Authority Login button on
+   desktop. Glassmorphism navy/blue pill matching the C Guard chatbot theme.
+   On mobile (≤768px) the desktop pill is hidden and only the version inside
+   the hamburger menu remains, so it can never overlap nav items.
+   ================================================== */
+/* Right-side action group — guarantees the pill + login button sit together
+   at the far right edge of the navbar regardless of viewport width. Without
+   this wrapper the pill drifts toward the absolutely-positioned nav-links. */
+.navbar-right-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 16px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.navbar-lang-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 5px 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(103, 232, 249, 0.32);
+  border-radius: 999px;
+  flex-shrink: 0;
+  box-shadow:
+    0 0 0 1px rgba(11, 31, 58, 0.18) inset,
+    0 6px 16px rgba(11, 31, 58, 0.28),
+    0 0 18px rgba(6, 182, 212, 0.16);
+  backdrop-filter: blur(10px) saturate(140%);
+  -webkit-backdrop-filter: blur(10px) saturate(140%);
+  transition: box-shadow 240ms ease, border-color 240ms ease;
+}
+
+.navbar-lang-toggle:hover {
+  border-color: rgba(103, 232, 249, 0.55);
+  box-shadow:
+    0 0 0 1px rgba(11, 31, 58, 0.18) inset,
+    0 8px 20px rgba(11, 31, 58, 0.32),
+    0 0 22px rgba(6, 182, 212, 0.28);
+}
+
+.navbar-lang-btn {
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.78);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 7px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+  line-height: 1;
+  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background 220ms ease,
+    color 220ms ease,
+    box-shadow 260ms ease,
+    transform 140ms ease;
+}
+
+.navbar-lang-btn:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.navbar-lang-btn:active { transform: scale(0.96); }
+
+.navbar-lang-btn:focus-visible {
+  outline: 2px solid rgba(103, 232, 249, 0.6);
+  outline-offset: 2px;
+}
+
+/* Active language — navy → blue gradient with a soft cyan glow ring. */
+.navbar-lang-btn.is-active {
+  background: linear-gradient(135deg, #0B1F3A 0%, #2563EB 100%);
+  color: #ffffff;
+  box-shadow:
+    0 0 0 1px rgba(103, 232, 249, 0.55),
+    0 6px 14px rgba(37, 99, 235, 0.42),
+    0 0 18px rgba(6, 182, 212, 0.32);
+}
+
+.navbar-lang-btn.is-active:hover {
+  background: linear-gradient(135deg, #0B1F3A 0%, #2563EB 100%);
+}
+
+/* Urdu label gets the Nastaliq font and a touch more breathing room. */
+.navbar-lang-btn--ur {
+  font-family: 'Noto Nastaliq Urdu', 'Jameel Noori Nastaleeq', 'Segoe UI',
+    Tahoma, sans-serif;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.3;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  min-width: 52px;
+}
+
+.navbar-lang-divider {
+  color: rgba(255, 255, 255, 0.22);
+  font-size: 13px;
+  user-select: none;
+  pointer-events: none;
+  line-height: 1;
+}
+
+/* Desktop right-side group is hidden at the hamburger breakpoint — the same
+   point where .navbar-login-btn used to vanish individually. The mobile menu
+   carries its own copy of the pill. */
+@media (max-width: 768px) {
+  .navbar-right-actions {
+    display: none;
+  }
+}
+
+/* Mobile menu — full-width, centered, slightly enlarged. */
+.mobile-menu-lang {
+  display: flex;
+  justify-content: center;
+  padding: 14px 16px 8px;
+}
+
+.mobile-menu-lang .navbar-lang-toggle {
+  margin: 0;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 6px 8px;
+}
+
+.mobile-menu-lang .navbar-lang-btn {
+  font-size: 13.5px;
+  padding: 8px 22px;
+  min-width: 60px;
+}
+
+.mobile-menu-lang .navbar-lang-btn--ur {
+  font-size: 16px;
+  min-width: 70px;
+}
+
+/* RTL polish — mirror the auto margin so the action group anchors to the
+   opposite edge when Urdu is active. */
+:root[dir='rtl'] .navbar-right-actions {
+  margin-left: 0;
+  margin-right: auto;
 }

@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { useLanguage } from '../context/LanguageContext';
 import Navbar from '../components/Navbar';
 import LandingPage from './LandingPage';
 import MapPage from './MapPage';
@@ -8,6 +9,8 @@ import Footer from '../components/Footer';
 import '../styles/Home.css';
 
 const Home = ({ onAuthorityLogin, onCheckFloodRisk }) => {
+  const { t } = useLanguage();
+
   useEffect(() => {
     // Intersection Observer for scroll animations
     const observerOptions = {
@@ -35,20 +38,33 @@ const Home = ({ onAuthorityLogin, onCheckFloodRisk }) => {
   return (
     <div className="home-page">
       <Navbar onAuthorityLogin={onAuthorityLogin} />
-      
+
       <main className="home-content">
         <LandingPage onCheckFloodRisk={onCheckFloodRisk} />
+
         <section id="map" className="map-section-wrapper">
           <div className="map-section-header">
-            <h2 className="section-title">Live Flood Risk Map</h2>
-            <p className="section-subtitle">Real-time visualization of flood risk across Chenab River Basin</p>
+
+            <h2 className="section-title">
+              {t('home.map.title', 'Live Flood Risk Map')}
+            </h2>
+
+            <p className="section-subtitle">
+              {t(
+                'home.map.subtitle',
+                'Real-time visualization of flood risk across Chenab River Basin'
+              )}
+            </p>
+
           </div>
+
           <MapPage />
         </section>
+
         <EmergencySection />
         <ContactSection />
       </main>
-      
+
       <Footer />
     </div>
   );

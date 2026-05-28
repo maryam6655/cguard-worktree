@@ -7,10 +7,16 @@ import FloodRiskPage from "./pages/FloodRiskPage";
 import SheltersPage from "./pages/SheltersPage";
 import Emergency from "./pages/Emergency";
 import ChatbotWidget from "./components/ChatbotWidget";
+import { LanguageProvider } from "./context/LanguageContext";
 import "./App.css";
 
 // Pages where the public chatbot should NOT appear (authority area + login).
 const CHATBOT_HIDDEN_PAGES = new Set(["login", "dashboard", "shelter-management"]);
+
+// Authority routes — bilingual RTL (Urdu) is suppressed here so the authority
+// UI keeps its original LTR layout. The user's language preference still
+// persists; it just doesn't apply to these pages.
+const AUTHORITY_PAGES = new Set(["login", "dashboard", "shelter-management"]);
 
 function App() {
   const [currentPage, setCurrentPage] = useState("home");
@@ -93,12 +99,13 @@ function App() {
   }
 
   const showChatbot = !CHATBOT_HIDDEN_PAGES.has(currentPage);
+  const suppressRtl = AUTHORITY_PAGES.has(currentPage);
 
   return (
-    <>
+    <LanguageProvider suppressRtl={suppressRtl}>
       {pageElement}
       <ChatbotWidget hidden={!showChatbot} />
-    </>
+    </LanguageProvider>
   );
 }
 

@@ -6,8 +6,7 @@ import ShelterTable from '../components/ShelterTable';
 import '../styles/AuthorityDashboard.css';
 import '../styles/ShelterManagementPage.css';
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || 'https://ghaniasaghir-cguard-backend.hf.space';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 const emptyShelterForm = {
   name: '',
@@ -118,7 +117,7 @@ const ShelterManagementPage = ({ user, onBackToDashboard, onLogout }) => {
     setErrorMessage('');
 
     try {
-      const response = await fetch(`${API_BASE_URL}/shelters`, {
+      const response = await fetch(`${API_BASE_URL}/api/shelters`, {
         method: 'GET',
         headers: {
           Accept: 'application/json'
@@ -193,7 +192,7 @@ const ShelterManagementPage = ({ user, onBackToDashboard, onLogout }) => {
     setSuccessMessage('');
 
     try {
-      const response = await fetch(`${API_BASE_URL}/shelters/${shelter.id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/shelters/${shelter.id}`, {
         method: 'DELETE',
         headers: {
           Authorization: `Bearer ${token}`
@@ -254,14 +253,16 @@ const ShelterManagementPage = ({ user, onBackToDashboard, onLogout }) => {
       throw new Error('Capacity must be greater than 0.');
     }
 
-    const normalizedOccupied = formData.status === 'Full'
-      ? parsedCapacity
-      : Math.min(Math.max(parsedOccupied, 0), parsedCapacity);
+    const normalizedOccupied =
+      formData.status === 'Full'
+        ? parsedCapacity
+        : Math.min(Math.max(parsedOccupied, 0), parsedCapacity);
 
     return {
       name: formData.name.trim(),
       location: formData.location.trim(),
       district: formData.district.trim(),
+      contact_number: formData.contactNumber.trim(),
       capacity: parsedCapacity,
       occupied: normalizedOccupied,
       status: formData.status,
@@ -288,8 +289,8 @@ const ShelterManagementPage = ({ user, onBackToDashboard, onLogout }) => {
 
       const isEditing = Boolean(editingShelterId);
       const url = isEditing
-        ? `${API_BASE_URL}/shelters/${editingShelterId}`
-        : `${API_BASE_URL}/shelters/add`;
+        ? `${API_BASE_URL}/api/shelters/${editingShelterId}`
+        : `${API_BASE_URL}/api/shelters/add`;
 
       const response = await fetch(url, {
         method: isEditing ? 'PUT' : 'POST',
@@ -475,7 +476,7 @@ const ShelterManagementPage = ({ user, onBackToDashboard, onLogout }) => {
                     type="tel"
                     value={formData.contactNumber}
                     onChange={(event) => handleFieldChange('contactNumber', event.target.value)}
-                    placeholder="Frontend display only for now"
+                    placeholder="Enter contact number"
                   />
                 </label>
 

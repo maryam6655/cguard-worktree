@@ -26,6 +26,7 @@ import {
   CalendarDays,
   Info,
   X,
+  ChevronDown,
 } from 'lucide-react';
 import '../styles/MapPage.css';
 
@@ -145,6 +146,28 @@ const MapPage = () => {
     lastUpdated: null
   });
   const [showBasinSummary, setShowBasinSummary] = useState(false);
+  // Mobile (≤480px) collapse state for the two map overlay panels. They start
+  // collapsed so the map is visible, and behave like an accordion (opening one
+  // closes the other) so two large panels never cover the map at once. On
+  // desktop these classes are ignored by CSS and the toggle button is hidden,
+  // so the panels render fully expanded exactly as before.
+  const [guideCollapsed, setGuideCollapsed] = useState(true);
+  const [overviewCollapsed, setOverviewCollapsed] = useState(true);
+
+  const toggleGuide = () => {
+    setGuideCollapsed((collapsed) => {
+      if (collapsed) setOverviewCollapsed(true); // opening guide → close overview
+      return !collapsed;
+    });
+  };
+
+  const toggleOverview = () => {
+    setOverviewCollapsed((collapsed) => {
+      if (collapsed) setGuideCollapsed(true); // opening overview → close guide
+      return !collapsed;
+    });
+  };
+
   const mapRef = useRef();
 
   // ESC closes the basin summary modal.
@@ -677,10 +700,19 @@ const MapPage = () => {
         </div>
 
         {/* Map Guide Card */}
-        <div className="map-guide">
+        <div className={`map-guide${guideCollapsed ? ' is-collapsed' : ''}`}>
           <div className="card-header">
             <h3>{t('map.legend.title', 'Map Legend')}</h3>
             <div className="header-line"></div>
+            <button
+              type="button"
+              className="panel-collapse-toggle"
+              aria-expanded={!guideCollapsed}
+              aria-label={t('map.legend.title', 'Map Legend')}
+              onClick={toggleGuide}
+            >
+              <ChevronDown size={16} strokeWidth={2.5} />
+            </button>
           </div>
           <div className="guide-section">
             <div className="guide-item">
@@ -751,7 +783,7 @@ const MapPage = () => {
         </div>
 
         {/* Basin Overview Card */}
-        <div className="basin-overview">
+        <div className={`basin-overview${overviewCollapsed ? ' is-collapsed' : ''}`}>
           <div className="overview-header">
             <h3 className="overview-title">
               {t('map.overview.title', 'Basin Overview')}
@@ -760,6 +792,15 @@ const MapPage = () => {
               <span className="live-dot"></span>
               <span>{t('map.overview.live', 'LIVE')}</span>
             </div>
+            <button
+              type="button"
+              className="panel-collapse-toggle"
+              aria-expanded={!overviewCollapsed}
+              aria-label={t('map.overview.title', 'Basin Overview')}
+              onClick={toggleOverview}
+            >
+              <ChevronDown size={16} strokeWidth={2.5} />
+            </button>
           </div>
           <p className="overview-timestamp">
             {t('map.overview.updated', 'Updated')} {getTimeAgo(basinStats.lastUpdated)}

@@ -387,6 +387,11 @@
   border-radius: 16px;
   box-shadow: 0 24px 60px rgba(15, 23, 42, 0.24);
   padding: 24px;
+  /* Never taller than the viewport (overlay has 24px padding each side) — on
+     phones the stacked form scrolls inside the modal so the header and Save
+     button stay reachable instead of being clipped off-screen. */
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
 }
 
 .shelter-update-picker {

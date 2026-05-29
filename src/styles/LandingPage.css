@@ -144,7 +144,22 @@
   line-height: 1.45;
   color: rgba(226, 232, 240, 0.94);
 }
+:root[dir='rtl'] .hero-content {
+  margin-left: 0;
+  margin-right: 4.5rem;
+  max-width: 760px;
+  text-align: right;
+}
 
+:root[dir='rtl'] .hero-description {
+  max-width: 720px;
+  line-height: 1.9;
+}
+
+:root[dir='rtl'] .hero-cta,
+:root[dir='rtl'] .hero-button {
+  align-self: flex-start;
+}
 /* =========================
    CTA BUTTON
 ========================= */

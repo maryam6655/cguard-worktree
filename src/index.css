@@ -12,8 +12,13 @@
 html, body {
   width: 100%;
   height: 100%;
-  /* Safety net: never allow horizontal scroll from a stray wide element.
-     Vertical scrolling is unaffected. */
+}
+
+/* Horizontal-overflow safety net lives on <body> only. Putting overflow-x on
+   <html> turns the root into a scroll container and breaks window.scrollTo /
+   smooth anchor scrolling (used by the navbar section links), so it must NOT
+   be applied to <html>. Vertical scrolling is unaffected. */
+body {
   overflow-x: hidden;
 }
 

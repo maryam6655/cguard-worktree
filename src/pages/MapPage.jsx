@@ -130,6 +130,8 @@ const MapPage = () => {
   // the map or wiping the previously-loaded risk colors.
   const [liveRefreshFailed, setLiveRefreshFailed] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isGuideCollapsed, setIsGuideCollapsed] = useState(true);
+  const [isOverviewCollapsed, setIsOverviewCollapsed] = useState(true);
   const [map, setMap] = useState(null);
   const [isListening, setIsListening] = useState(false);
   const [loading, setLoading] = useState(true);

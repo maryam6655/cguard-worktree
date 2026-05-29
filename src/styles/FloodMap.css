@@ -940,3 +940,281 @@
     border-radius: 18px;
   }
 }
+
+/* ==================================================
+   FINAL MOBILE RESPONSIVE OVERRIDES - FloodMap
+   Purpose: mobile-only polish for the Flood Risk map overlay.
+   Desktop styles above 900px remain unchanged.
+   ================================================== */
+
+@media (max-width: 900px) {
+  .fm-zoom-group {
+    top: 86px;
+    left: 14px;
+    z-index: 1250;
+    border-radius: 14px;
+  }
+
+  .fm-zoom-btn {
+    width: 38px;
+    height: 38px;
+  }
+
+  .pfr-card {
+    top: auto;
+    left: 14px;
+    right: 14px;
+    bottom: 92px;
+    width: auto;
+    max-width: none;
+    max-height: min(46vh, 420px);
+    padding: 16px;
+    border-radius: 20px;
+    gap: 12px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    box-sizing: border-box;
+    z-index: 1350;
+  }
+
+  .pfr-header {
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .pfr-title-group {
+    gap: 10px;
+  }
+
+  .pfr-icon {
+    width: 34px;
+    height: 34px;
+  }
+
+  .pfr-title {
+    font-size: 15px;
+    line-height: 1.25;
+  }
+
+  .pfr-pill {
+    padding: 4px 9px;
+    font-size: 9.5px;
+    letter-spacing: 0.06em;
+  }
+
+  .pfr-risks-grid {
+    gap: 7px;
+  }
+
+  .pfr-mini {
+    padding: 10px 6px;
+    border-radius: 12px;
+  }
+
+  .pfr-mini-percent {
+    font-size: 19px;
+  }
+
+  .pfr-mini-chip {
+    font-size: 8.5px;
+    padding: 2px 7px;
+  }
+
+  .pfr-alerts {
+    padding: 13px;
+    border-radius: 15px;
+  }
+
+  .pfr-alerts-header {
+    align-items: flex-start;
+  }
+
+  .pfr-alerts-active {
+    font-size: 9.5px;
+    padding: 3px 8px;
+  }
+
+  .pfr-emergency {
+    padding: 12px 14px;
+    border-radius: 14px;
+  }
+
+  .pfr-emergency-icon {
+    width: 34px;
+    height: 34px;
+  }
+
+  .pfr-emergency-text strong {
+    font-size: 13px;
+  }
+
+  .pfr-emergency-text > span {
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 540px) {
+  .fm-zoom-group {
+    top: 88px;
+    left: 12px;
+  }
+
+  .fm-zoom-btn {
+    width: 36px;
+    height: 36px;
+  }
+
+  .pfr-card {
+    left: 12px;
+    right: 12px;
+    bottom: 88px;
+    max-height: 44vh;
+    padding: 14px;
+    border-radius: 18px;
+  }
+
+  .pfr-header {
+    flex-wrap: wrap;
+  }
+
+  .pfr-title-group {
+    width: 100%;
+  }
+
+  .pfr-pill {
+    margin-left: 44px;
+  }
+
+  .pfr-detail-row {
+    font-size: 12px;
+    gap: 8px;
+  }
+
+  .pfr-warning {
+    padding: 12px;
+    border-radius: 14px;
+    gap: 10px;
+  }
+
+  .pfr-warning-title {
+    font-size: 13px;
+  }
+
+  .pfr-warning-body,
+  .pfr-warning-hint {
+    font-size: 11px;
+  }
+
+  .pfr-risks-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .pfr-mini-horizon {
+    font-size: 10px;
+  }
+
+  .pfr-mini-percent {
+    font-size: 17px;
+  }
+
+  .pfr-mini-chip {
+    gap: 4px;
+    white-space: normal;
+    text-align: center;
+    line-height: 1.15;
+  }
+
+  .pfr-meta {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    font-size: 11px;
+  }
+
+  .pfr-alerts-title-group strong {
+    font-size: 13px;
+  }
+
+  .pfr-alerts-subtitle,
+  .pfr-alerts-disabled,
+  .pfr-alerts-info {
+    font-size: 11px;
+  }
+
+  .pfr-toggles {
+    grid-template-columns: 1fr;
+  }
+
+  .pfr-toggle {
+    padding: 9px 11px;
+  }
+
+  .pfr-select {
+    font-size: 12px;
+    padding: 9px 34px 9px 12px;
+  }
+
+  .pfr-alerts-btn {
+    padding: 11px 14px;
+    font-size: 12px;
+  }
+
+  .pfr-modal-backdrop {
+    padding: 12px;
+  }
+
+  .pfr-modal {
+    width: 100%;
+    max-height: calc(100vh - 24px);
+    padding: 16px;
+    border-radius: 18px;
+  }
+
+  .pfr-modal-summary > div {
+    align-items: flex-start;
+    font-size: 12px;
+  }
+
+  .pfr-modal-actions {
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 380px) {
+  .pfr-card {
+    left: 10px;
+    right: 10px;
+    bottom: 84px;
+    max-height: 42vh;
+    padding: 12px;
+  }
+
+  .pfr-title {
+    font-size: 14px;
+  }
+
+  .pfr-pill {
+    margin-left: 42px;
+    font-size: 9px;
+  }
+
+  .pfr-risks-grid {
+    gap: 6px;
+  }
+
+  .pfr-mini {
+    padding: 8px 5px;
+  }
+
+  .pfr-mini-percent {
+    font-size: 16px;
+  }
+
+  .pfr-emergency {
+    padding: 11px 12px;
+  }
+
+  .pfr-emergency-chevron {
+    display: none;
+  }
+}

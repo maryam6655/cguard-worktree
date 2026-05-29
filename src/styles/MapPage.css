@@ -921,6 +921,10 @@
   }
 
   .zoom-controls {
+    /* Reset the desktop top:520px so the mobile bottom anchoring actually
+       takes effect (otherwise top wins and the controls clip off short
+       phone viewports). */
+    top: auto;
     bottom: 90px;
     right: 16px;
     gap: 8px;
@@ -933,8 +937,12 @@
 }
 
 @media (max-width: 480px) {
+  /* On phones the left legend and right basin-overview both float over the
+     map. Cap each to just under half the viewport so they never overlap in
+     the middle or run off-screen. */
   .map-guide {
-    width: 220px;
+    width: calc(50vw - 16px);
+    max-width: 220px;
     left: 12px;
     top: 16px;
     padding: 12px;
@@ -943,7 +951,9 @@
   .basin-overview {
     right: 12px;
     top: 16px;
+    width: calc(50vw - 16px);
     max-width: 220px;
+    min-width: 0;
     padding: 12px;
   }
 
@@ -1010,6 +1020,7 @@
   }
 
   .zoom-controls {
+    top: auto;
     bottom: 80px;
     right: 12px;
     gap: 6px;

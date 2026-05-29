@@ -406,10 +406,12 @@
 }
 
 @media (max-width: 768px) {
+  /* Home-page desktop nav collapses into the hamburger. The back-button
+     variant (.navbar-back-btn) stays visible — it's the only way back on
+     state-routed pages, so it must never be hidden on mobile. */
   .navbar-links,
   .navbar-right-actions,
-  .navbar-login-btn,
-  .navbar-back-btn {
+  .navbar-login-btn {
     display: none;
   }
 

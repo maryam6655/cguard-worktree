@@ -230,6 +230,9 @@
     flex-direction: column;
     text-align: center;
     gap: 0.75rem;
+    /* Clear the floating chatbot FAB (bottom-right) on the home page so the
+       copyright row isn't covered on small screens. */
+    padding-bottom: 72px;
   }
 }
 

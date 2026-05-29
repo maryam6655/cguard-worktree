@@ -923,12 +923,14 @@
 @media (max-width: 900px) {
   .pfr-card {
     top: auto;
-    bottom: 16px;
+    /* Sit above the chatbot FAB (bottom-right) so its "View Emergency
+       Resources" button is never covered on phones/tablets. */
+    bottom: 100px;
     left: 16px;
     right: 16px;
     width: auto;
     max-width: none;
-    max-height: 65vh;
+    max-height: calc(75vh - 100px);
     border-radius: 20px;
     padding: 18px;
   }

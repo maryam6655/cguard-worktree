@@ -12,6 +12,29 @@
 html, body {
   width: 100%;
   height: 100%;
+  /* Safety net: never allow horizontal scroll from a stray wide element.
+     Vertical scrolling is unaffected. */
+  overflow-x: hidden;
+}
+
+/* Media elements must never exceed their container's width on small screens. */
+img,
+svg,
+video,
+canvas {
+  max-width: 100%;
+}
+
+/* Leaflet sizes its tiles/markers explicitly — exclude them from the global
+   max-width rule above, otherwise tiles shrink and the map renders with gaps
+   or misaligned layers. */
+.leaflet-container img,
+.leaflet-container svg,
+.leaflet-container canvas,
+.leaflet-pane img,
+.leaflet-pane svg,
+.leaflet-pane canvas {
+  max-width: none;
 }
 
 /* =========================

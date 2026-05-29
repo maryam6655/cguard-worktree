@@ -26,5 +26,7 @@
 @media (max-width: 768px) {
   .emergency-page-main {
     padding-top: 120px;
+    /* Clear the floating chatbot FAB so bottom content can scroll above it. */
+    padding-bottom: 96px;
   }
 }

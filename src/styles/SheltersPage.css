@@ -30,5 +30,7 @@
 
   .shelters-page-main {
     padding-top: 72px;
+    /* Clear the floating chatbot FAB so bottom content can scroll above it. */
+    padding-bottom: 96px;
   }
 }

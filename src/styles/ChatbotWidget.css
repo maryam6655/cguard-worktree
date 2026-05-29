@@ -594,6 +594,18 @@
 /* ──────────────────────────────────────────────────
    RESPONSIVE
    ────────────────────────────────────────────────── */
+/* On mobile/tablet the FAB shares the bottom-right corner with floating map
+   and flood-risk cards, so shrink it slightly to reduce its footprint. The
+   affected pages also lift their bottom content clear of it (see
+   FloodMap.css .pfr-card and the *-page-main bottom padding). Desktop (>900px)
+   keeps the full 84px button. */
+@media (max-width: 900px) {
+  .cg-chatbot-fab {
+    width: 60px;
+    height: 60px;
+  }
+}
+
 @media (max-width: 540px) {
   .cg-chatbot {
     right: 16px;
@@ -605,11 +617,6 @@
     width: calc(100vw - 32px);
     height: min(620px, calc(100vh - 120px));
     border-radius: 24px;
-  }
-
-  .cg-chatbot-fab {
-    width: 72px;
-    height: 72px;
   }
 
   /* Hide tooltip on touch / mobile (no hover state) */

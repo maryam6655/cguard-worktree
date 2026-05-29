@@ -127,16 +127,20 @@ const Navbar = ({ onAuthorityLogin, showBackButton = false, onBack }) => {
           </button>
         )}
 
-        {/* Mobile Hamburger */}
-        <button
-          className={`hamburger ${isMenuOpen ? 'active' : ''}`}
-          onClick={() => setIsMenuOpen(!isMenuOpen)}
-          aria-label="Menu"
-        >
-          <span></span>
-          <span></span>
-          <span></span>
-        </button>
+        {/* Mobile Hamburger — only on pages with the full nav. Back-button
+            pages keep their always-visible back button instead, so the
+            hamburger (which would open an empty menu there) is not rendered. */}
+        {!showBackButton && (
+          <button
+            className={`hamburger ${isMenuOpen ? 'active' : ''}`}
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            aria-label="Menu"
+          >
+            <span></span>
+            <span></span>
+            <span></span>
+          </button>
+        )}
       </div>
 
       {/* Mobile Menu */}

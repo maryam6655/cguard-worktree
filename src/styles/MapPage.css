@@ -608,7 +608,7 @@
 
 .zoom-controls {
   position: absolute;
-  top: 520px;
+  top: 560px;
   right: 24px;
   display: flex;
   flex-direction: column;
@@ -818,6 +818,37 @@
   display: none !important;
 }
 
+
+/* Keep Leaflet popup/tooltip chrome clean on MapPage only. */
+.map-page .leaflet-popup-close-button {
+  top: 8px !important;
+  right: 8px !important;
+  width: 24px !important;
+  height: 24px !important;
+  line-height: 22px !important;
+  border-radius: 50% !important;
+  background: rgba(241, 245, 249, 0.95) !important;
+  color: #475569 !important;
+  font-size: 18px !important;
+  font-weight: 700 !important;
+  text-align: center !important;
+  text-decoration: none !important;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.12) !important;
+}
+
+.map-page .leaflet-popup-close-button:hover {
+  background: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+.map-page .leaflet-popup-content-wrapper {
+  border-radius: 12px !important;
+}
+
+.map-page .leaflet-popup-content {
+  margin: 12px 14px !important;
+}
+
 .custom-popup {
   display: flex;
   flex-direction: column;
@@ -869,6 +900,8 @@
 
 /* ==================================================
    RESPONSIVE DESIGN
+   Desktop is intentionally preserved above 768px.
+   Mobile/tablet changes are scoped here only.
    ================================================== */
 
 @media (max-width: 1024px) {
@@ -877,7 +910,7 @@
   }
 
   .map-guide {
-    width: 250px;
+    width: 260px;
   }
 
   .basin-overview {
@@ -923,59 +956,150 @@
 
   .map-guide {
     top: 74px;
-    max-height: 210px;
+    bottom: auto;
+    max-height: 230px;
     overflow-y: auto;
     padding: 12px;
+    z-index: 1300;
   }
 
   .basin-overview {
-    top: 122px;
+    top: 130px;
     bottom: auto;
-    left: 12px;
-    right: 12px;
-    width: auto;
-    max-width: none;
-    min-width: 0;
-    max-height: 235px;
+    max-height: 260px;
     overflow-y: auto;
-    overflow-x: hidden;
     padding: 0;
+    z-index: 1200;
+  }
+
+  .map-guide:not(.is-collapsed) {
+    z-index: 1500;
+  }
+
+  .basin-overview:not(.is-collapsed) {
+    z-index: 1400;
+  }
+
+  .map-guide.is-collapsed,
+  .basin-overview.is-collapsed {
+    max-height: 48px;
+    height: auto;
+    overflow: hidden;
+  }
+
+  .map-guide.is-collapsed> :not(.card-header),
+  .basin-overview.is-collapsed> :not(.overview-header) {
+    display: none !important;
+  }
+
+  .map-guide.is-collapsed .card-header,
+  .basin-overview.is-collapsed .overview-header {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+  }
+
+  .map-guide .header-line {
+    display: none;
+  }
+
+  .panel-collapse-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    margin-left: auto;
+    padding: 0;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: #475569;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .panel-collapse-toggle svg {
+    transition: transform 0.2s ease;
+  }
+
+  .map-guide:not(.is-collapsed) .panel-collapse-toggle svg,
+  .basin-overview:not(.is-collapsed) .panel-collapse-toggle svg {
+    transform: rotate(180deg);
+  }
+
+  .card-header {
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+  }
+
+  .card-header h3,
+  .overview-title {
+    font-size: 14px;
   }
 
   .overview-header {
     padding: 10px 12px;
   }
 
-  .overview-title {
-    font-size: 14px;
+  .overview-timestamp {
+    padding: 0 12px 6px 12px;
+    font-size: 10px;
+  }
+
+  .overview-rows {
+    max-height: 185px;
+    overflow-y: auto;
   }
 
   .overview-row {
-    padding: 9px 12px;
+    min-height: 42px;
+    padding: 8px 12px;
     gap: 8px;
+  }
+
+  .icon-box {
+    width: 30px;
+    height: 30px;
   }
 
   .row-label {
     min-width: 0;
+    font-size: 12px;
     line-height: 1.25;
   }
 
   .row-value {
     min-width: 34px;
-    font-size: 15px;
+    font-size: 14px;
+  }
+
+  .guide-item {
+    font-size: 12px;
+    margin-bottom: 6px;
+  }
+
+  .risk-item {
+    font-size: 11px;
+    padding: 4px 0;
   }
 
   .zoom-controls {
     top: auto;
-    bottom: 78px;
-    right: 12px;
+    bottom: 76px;
+    right: 10px;
     gap: 6px;
   }
 
   .zoom-btn,
   .locate-btn {
-    width: 38px;
-    height: 38px;
+    width: 36px;
+    height: 36px;
+  }
+
+  .zoom-group,
+  .locate-btn {
+    border-radius: 12px;
   }
 
   .basemap-toggle {
@@ -985,149 +1109,68 @@
     gap: 6px;
   }
 
+  .toggle-switch {
+    width: 48px;
+    height: 26px;
+  }
+
+  .toggle-slider {
+    width: 20px;
+    height: 20px;
+  }
+
+  .toggle-switch.active .toggle-slider {
+    transform: translateX(22px);
+  }
+
   .toggle-label {
     font-size: 10px;
   }
 }
 
+@media (max-width: 480px) {
+  .map-page {
+    height: 580px;
+    min-height: 580px;
+  }
 
+  .search-container {
+    top: 12px;
+  }
 
-.map-page {
-  height: 580px;
-  min-height: 580px;
+  .search-form {
+    padding: 7px 10px;
+  }
+
+  .search-icon {
+    width: 20px;
+    height: 20px;
+  }
+
+  .mic-icon {
+    width: 36px;
+    height: 36px;
+  }
+
+  .search-input {
+    font-size: 13px;
+  }
+
+  .map-guide {
+    top: 66px;
+    max-height: 210px;
+  }
+
+  .basin-overview {
+    top: 122px;
+    max-height: 235px;
+  }
+
+  .overview-rows {
+    max-height: 165px;
+    overflow-y: auto;
+  }
 }
-
-.search-container {
-  top: 12px;
-}
-
-.search-form {
-  padding: 7px 10px;
-}
-
-.search-icon {
-  width: 20px;
-  height: 20px;
-}
-
-.mic-icon {
-  width: 36px;
-  height: 36px;
-}
-
-.search-input {
-  font-size: 13px;
-}
-
-.map-guide {
-  top: 66px;
-  max-height: 230px;
-}
-
-.basin-overview {
-  bottom: 82px;
-  max-height: 280px;
-}
-
-.map-guide.is-collapsed,
-.basin-overview.is-collapsed {
-  max-height: none;
-  overflow: visible;
-}
-
-.map-guide.is-collapsed> :not(.card-header) {
-  display: none;
-}
-
-.basin-overview.is-collapsed> :not(.overview-header) {
-  display: none;
-}
-
-.map-guide.is-collapsed .card-header {
-  margin-bottom: 0;
-  padding-bottom: 0;
-  border-bottom: none;
-}
-
-.map-guide .header-line {
-  display: none;
-}
-
-.panel-collapse-toggle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  margin-left: auto;
-  padding: 0;
-  border: none;
-  border-radius: 8px;
-  background: transparent;
-  color: #475569;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-
-.panel-collapse-toggle svg {
-  transition: transform 0.2s ease;
-}
-
-.map-guide:not(.is-collapsed) .panel-collapse-toggle svg,
-.basin-overview:not(.is-collapsed) .panel-collapse-toggle svg {
-  transform: rotate(180deg);
-}
-
-.card-header {
-  margin-bottom: 8px;
-  padding-bottom: 8px;
-}
-
-.card-header h3,
-.overview-title {
-  font-size: 14px;
-}
-
-.guide-item {
-  font-size: 12px;
-  margin-bottom: 6px;
-}
-
-.risk-item {
-  font-size: 11px;
-  padding: 4px 0;
-}
-
-.overview-timestamp {
-  padding: 0 12px 6px 12px;
-  font-size: 10px;
-}
-
-.overview-row {
-  min-height: 42px;
-  padding: 8px 12px;
-}
-
-.icon-box {
-  width: 30px;
-  height: 30px;
-}
-
-.row-value {
-  font-size: 14px;
-}
-
-.zoom-controls {
-  bottom: 76px;
-  right: 10px;
-}
-
-.zoom-btn,
-.locate-btn {
-  width: 36px;
-  height: 36px;
-}
- 
 
 @media (max-width: 380px) {
   .map-page {
@@ -1136,22 +1179,10 @@
   }
 
   .map-guide,
-  .basin-overview {
-    left: 10px;
-    right: 10px;
-  }
-
+  .basin-overview,
   .search-container {
     left: 10px;
     right: 10px;
-  }
-
-  .basin-overview {
-    bottom: 78px;
-  }
-
-  .overview-row {
-    padding: 7px 10px;
   }
 
   .row-label {
@@ -1258,8 +1289,8 @@
 }
 
 .basin-summary-close {
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
   border: none;
   background: #f1f5f9;
@@ -1268,12 +1299,29 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: background 150ms ease, color 150ms ease;
+  flex-shrink: 0;
+  padding: 0;
+  font-size: 0;
+  line-height: 1;
+  transition: background 150ms ease, color 150ms ease, transform 120ms ease;
+}
+
+.basin-summary-close::before {
+  content: "×";
+  font-size: 24px;
+  font-weight: 500;
+  line-height: 1;
+  transform: translateY(-1px);
+}
+
+.basin-summary-close svg {
+  display: none;
 }
 
 .basin-summary-close:hover {
   background: #e2e8f0;
   color: #0f172a;
+  transform: scale(1.04);
 }
 
 .basin-summary-grid {
@@ -1506,245 +1554,16 @@
 }
 
 @media (max-width: 480px) {
-  .map-page {
-    height: 580px;
-    min-height: 580px;
+  .basin-summary-modal {
+    padding: 18px;
+    border-radius: 18px;
   }
 
-  .map-guide {
-    z-index: 1300;
+  .basin-summary-grid {
+    grid-template-columns: 1fr;
   }
 
-  .basin-overview {
-    z-index: 1200;
-  }
-
-  .map-guide:not(.is-collapsed) {
-    z-index: 1500;
-  }
-
-  .basin-overview:not(.is-collapsed) {
-    z-index: 1400;
-  }
-
-  .search-container {
-    top: 12px;
-    left: 12px;
-    right: 12px;
-    width: auto;
-    max-width: none;
-    padding: 0;
-    transform: none;
-  }
-
-  .search-form {
-    padding: 7px 10px;
-  }
-
-  .search-icon {
-    width: 20px;
-    height: 20px;
-  }
-
-  .mic-icon {
-    width: 36px;
-    height: 36px;
-  }
-
-  .search-input {
-    font-size: 13px;
-  }
-
-  .map-guide {
-    top: 66px;
-    bottom: auto;
-    left: 12px;
-    right: 12px;
-    width: auto;
-    max-width: none;
-    max-height: 210px;
-    overflow-y: auto;
-    overflow-x: hidden;
-    padding: 12px;
-  }
-
-  .map-guide.is-collapsed {
-    max-height: 48px;
-    height: auto;
-    overflow: hidden;
-  }
-
-  .map-guide.is-collapsed .card-header {
-    margin-bottom: 0;
-    padding-bottom: 0;
-    border-bottom: none;
-  }
-
-  .map-guide.is-collapsed> :not(.card-header) {
-    display: none !important;
-  }
-
-  .basin-overview {
-    top: 122px;
-    bottom: auto;
-    left: 12px;
-    right: 12px;
-    width: auto;
-    max-width: none;
-    min-width: 0;
-    max-height: 235px;
-    overflow-y: auto;
-    overflow-x: hidden;
-    padding: 0;
-  }
-
-  .basin-overview.is-collapsed {
-    max-height: 48px;
-    height: auto;
-    overflow: hidden;
-  }
-
-  .basin-overview.is-collapsed .overview-header {
-    border-bottom: none;
-  }
-
-  .basin-overview.is-collapsed> :not(.overview-header) {
-    display: none !important;
-  }
-
-  .overview-rows {
-    max-height: 165px;
-    overflow-y: auto;
-  }
-
-  .overview-header {
-    padding: 10px 12px;
-  }
-
-  .overview-title,
-  .card-header h3 {
-    font-size: 14px;
-  }
-
-  .overview-timestamp {
-    padding: 0 12px 6px 12px;
-    font-size: 10px;
-  }
-
-  .overview-row {
-    min-height: 42px;
-    padding: 8px 12px;
-    gap: 8px;
-  }
-
-  .icon-box {
-    width: 30px;
-    height: 30px;
-  }
-
-  .row-label {
-    min-width: 0;
-    font-size: 12px;
-    line-height: 1.25;
-  }
-
-  .row-value {
-    min-width: 34px;
-    font-size: 14px;
-  }
-
-  .card-header {
-    margin-bottom: 8px;
-    padding-bottom: 8px;
-  }
-
-  .map-guide .header-line {
-    display: none;
-  }
-
-  .panel-collapse-toggle {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 30px;
-    height: 30px;
-    margin-left: auto;
-    padding: 0;
-    border: none;
-    border-radius: 8px;
-    background: transparent;
-    color: #475569;
-    cursor: pointer;
-    flex-shrink: 0;
-  }
-
-  .panel-collapse-toggle svg {
-    transition: transform 0.2s ease;
-  }
-
-  .map-guide:not(.is-collapsed) .panel-collapse-toggle svg,
-  .basin-overview:not(.is-collapsed) .panel-collapse-toggle svg {
-    transform: rotate(180deg);
-  }
-
-  .guide-item {
-    font-size: 12px;
-    margin-bottom: 6px;
-  }
-
-  .risk-item {
-    font-size: 11px;
-    padding: 4px 0;
-  }
-
-  .zoom-controls {
-    top: auto;
-    bottom: 76px;
-    right: 10px;
-    gap: 6px;
-  }
-
-  .zoom-btn,
-  .locate-btn {
-    width: 36px;
-    height: 36px;
-  }
-
-  .zoom-group,
-  .locate-btn {
-    border-radius: 12px;
-  }
-
-  .basemap-toggle {
-    bottom: 12px;
-    max-width: calc(100% - 24px);
-    padding: 5px 10px;
-    gap: 6px;
-  }
-
-  .toggle-switch {
-    width: 48px;
-    height: 26px;
-  }
-
-  .toggle-slider {
-    width: 20px;
-    height: 20px;
-  }
-
-  .toggle-switch.active .toggle-slider {
-    transform: translateX(22px);
-  }
-
-  .toggle-label {
-    font-size: 10px;
+  .basin-summary-title {
+    font-size: 17px;
   }
 }
-
-@media (max-width: 440px) {
-  .overview-rows {
-    max-height: 165px;
-    overflow-y: auto;
-  }
-}
- 

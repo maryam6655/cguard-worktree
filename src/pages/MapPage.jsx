@@ -130,8 +130,6 @@ const MapPage = () => {
   // the map or wiping the previously-loaded risk colors.
   const [liveRefreshFailed, setLiveRefreshFailed] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [isGuideCollapsed, setIsGuideCollapsed] = useState(true);
-  const [isOverviewCollapsed, setIsOverviewCollapsed] = useState(true);
   const [map, setMap] = useState(null);
   const [isListening, setIsListening] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -527,14 +525,6 @@ const MapPage = () => {
     const ucName = resolveUcName(props);
     const district = props.DISTRICT || props.DISTRICT_NAME || '';
     const riskLevel = props.risk_level || (hasRisk ? '' : 'No data');
-    const station = props.backend_station;
-    const distance =
-      props.distance_km != null
-        ? Number(props.distance_km).toFixed(1)
-        : props.Distance_to_River_km != null
-          ? Number(props.Distance_to_River_km).toFixed(1)
-          : null;
-
     // Build the rows defensively — missing fields are simply skipped instead
     // of rendering "undefined".
     const rows = [];
@@ -543,12 +533,6 @@ const MapPage = () => {
     }
     if (riskLevel) {
       rows.push(`<div class="uc-tooltip-row"><span>Risk Level</span><strong style="color:${pctColor}">${escapeHtml(riskLevel)}</strong></div>`);
-    }
-    if (station) {
-      rows.push(`<div class="uc-tooltip-row"><span>Source Station</span><strong>${escapeHtml(station)}</strong></div>`);
-    }
-    if (distance != null) {
-      rows.push(`<div class="uc-tooltip-row"><span>From River</span><strong>${distance} km</strong></div>`);
     }
 
     const popupContent = `
